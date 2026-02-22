@@ -20,7 +20,7 @@ class AboutWindow: NSWindowController {
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
         window.center()
-        window.title = "About Bootstrapp"
+        window.title = "About Image Annotation Tool"
         window.contentView = NSHostingView(rootView: contentView)
         window.alwaysOnTop = true
     }
@@ -45,7 +45,7 @@ class AboutWindow: NSWindowController {
             version: Bundle.main.version,
             build: Bundle.main.buildVersion,
             copyright: Bundle.main.copyright,
-            developerName: "<Insert name here>")
+            developerName: "David P. Discher")
             .frame(width: 500, height: 260)
     }
 }

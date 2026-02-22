@@ -1,27 +1,32 @@
-# Sidebar App
+# Image Annotation Tool
 
-This is a template repository for quickly creating boilerplate code for a SwiftUI macOS app.
+`Image Annotation Tool` is a macOS app project based on the `swift-macos-template` repository (also known as "Sidebar App").
+
+The app-specific functionality is still being defined. For now, this repository keeps the template's SwiftUI macOS app structure and is being renamed/reworked as the foundation for `ImageAnnotationTool`.
 
 # License
 
-This app is released into the public domain under The Unlicense. See LICENSE file for more information.
+This project continues under the MIT License. See `LICENSE` for full terms.
 
 # Overview
 
-This is a Github template repository that you can create your new repository from by clicking the big green "Use this template" button on Github.
+This codebase currently includes the original template's macOS SwiftUI scaffolding, including:
 
-Here's a screenshot:
-
-![Sidebar App](https://user-images.githubusercontent.com/384210/169694882-42e7bb8c-c576-42a8-a6ac-bb2794c76f95.png)
-
-What you get is an Xcode project with boilerplate code for a SwiftUI-based macOS app with a few things already set up:
-
-- A sidebar plus a button and menu options for toggling the sidebar.
-- A menu bar button that shows a SwiftUI view when left-clicked or a menu when right clicked.
-- A siderbar search box, but also a detail view pane specific searchbox in the window toolbar.
-- A detail view pane with an example drop target for dropping files onto the window.
-- A custom About window containing a SwiftUI view, and an attributions view, also in SwiftUI.
-- A menu option for toggling whether the window should always float on top of other windows.
-- A custom menu for arbitrary menu options.
-- An Export menu option replacement.
+- A sidebar-based main window layout.
+- A menu bar button with left-click popup and right-click menu behavior.
+- Search UI examples in the sidebar and toolbar.
+- Drag-and-drop example support in a detail pane.
+- A custom About window and Attributions window in SwiftUI.
+- A window "always on top" toggle.
+- Custom app menu commands.
+- Export command scaffolding.
 - A tabbed settings window.
+
+Template origin screenshot (from the original Sidebar App template):
+
+![Image Annotation Tool template origin screenshot](https://user-images.githubusercontent.com/384210/169694882-42e7bb8c-c576-42a8-a6ac-bb2794c76f95.png)
+
+# Credits
+
+- Original template foundation: Simon Weniger (`swift-macos-template` / "Sidebar App")
+- Large parts of this app were developed with OpenAI Codex (Codex app).

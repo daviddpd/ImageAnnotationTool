@@ -36,7 +36,7 @@ extension MoreStuffPane: DropDelegate {
         let itemProviders = info.itemProviders(for: [UTType.fileURL])
 
         guard itemProviders.count == 1 else {
-            // We want exactly one template root folder to be dropped.
+            // We want exactly one project root folder to be dropped.
             return false
         }
         
