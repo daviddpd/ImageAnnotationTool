@@ -1,9 +1,12 @@
 import SwiftUI
 
 struct HelloWorldPane: View {
-    
     @ObservedObject private var store = AnnotationAppStore.shared
-        
+    
+    @State private var selectedBoxID: UUID?
+    @State private var labelEditorText = ""
+    @FocusState private var isLabelEditorFocused: Bool
+    
     var body: some View {
         Pane {
             content
@@ -11,6 +14,15 @@ struct HelloWorldPane: View {
         }
         .navigationTitle(store.selectedImageURL?.lastPathComponent ?? "Image Annotation Tool")
         .navigationSubtitle(store.selectedImageURL.map { store.metadataSummary(for: $0) } ?? "Open a directory to begin")
+        .onAppear {
+            syncSelectionWithCurrentDocument(resetSelection: true)
+        }
+        .onChange(of: store.selectedImageURL) { _ in
+            syncSelectionWithCurrentDocument(resetSelection: true)
+        }
+        .onChange(of: store.currentDocument?.objects) { _ in
+            syncSelectionWithCurrentDocument(resetSelection: false)
+        }
     }
     
     @ViewBuilder
@@ -38,39 +50,63 @@ struct HelloWorldPane: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if store.selectedImageURL != nil {
+        } else if let document = store.currentDocument, let image = store.currentImageNSImage {
             VStack(alignment: .leading, spacing: 12) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.black.opacity(0.04))
                     
-                    if let image = store.currentImageNSImage {
-                        Image(nsImage: image)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity)
-                            .padding(8)
-                    } else {
-                        Text("Unable to load image preview")
-                            .foregroundColor(.secondary)
-                    }
+                    AnnotationCanvasView(
+                        image: image,
+                        imageSize: document.imageSize,
+                        boxes: document.objects,
+                        selectedBoxID: selectedBoxID,
+                        defaultNewLabel: effectiveDefaultNewLabel,
+                        onBoxesChanged: { updatedBoxes in
+                            store.updateObjectsForCurrentImage(updatedBoxes)
+                        },
+                        onSelectionChanged: { newSelection in
+                            setSelectedBox(newSelection, focusLabelEditor: false)
+                        },
+                        onLabelEditRequested: { boxID in
+                            setSelectedBox(boxID, focusLabelEditor: true)
+                        }
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .overlay(alignment: .topLeading) {
+                    Text("Click-drag to create boxes. Drag inside to move. Drag corner handles to resize.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 6)
+                        .background(Color(.windowBackgroundColor).opacity(0.85))
+                        .cornerRadius(6)
+                        .padding(8)
+                }
                 
-                Text("TODO(Stage 002): Replace this preview with an interactive annotation canvas (draw/select/move/resize bounding boxes).")
-                    .font(.footnote)
-                    .foregroundColor(.secondary)
+                selectedBoxEditor(document: document)
                 
-                if let document = store.currentDocument, !document.objects.isEmpty {
+                if !document.objects.isEmpty {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 6) {
                             ForEach(document.objects) { object in
-                                Text(object.label)
-                                    .font(.caption)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 4)
-                                    .background(Color.blue.opacity(0.12))
-                                    .cornerRadius(6)
+                                Button {
+                                    setSelectedBox(object.id, focusLabelEditor: false)
+                                } label: {
+                                    Text(object.label)
+                                        .font(.caption)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background((object.id == selectedBoxID ? Color.blue : Color.blue.opacity(0.25)).opacity(object.id == selectedBoxID ? 0.2 : 0.12))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 6)
+                                                .stroke(object.id == selectedBoxID ? Color.blue : Color.clear, lineWidth: 1)
+                                        )
+                                        .cornerRadius(6)
+                                }
+                                .buttonStyle(.plain)
                             }
                         }
                     }
@@ -82,11 +118,163 @@ struct HelloWorldPane: View {
                         .foregroundColor(.red)
                 }
             }
+        } else if store.selectedImageURL != nil {
+            VStack(spacing: 12) {
+                ProgressView()
+                Text("Loading image and annotations…")
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             Text("Select an image from the Files sidebar.")
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+    
+    @ViewBuilder
+    private func selectedBoxEditor(document: ImageAnnotationDocument) -> some View {
+        if let selectedBox = selectedBox(in: document) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text("Selected box")
+                        .font(.subheadline.weight(.semibold))
+                    Text(coordinatesSummary(for: selectedBox))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                
+                HStack(spacing: 8) {
+                    TextField("Object label", text: $labelEditorText)
+                        .textFieldStyle(.roundedBorder)
+                        .focused($isLabelEditorFocused)
+                        .onSubmit {
+                            commitSelectedBoxLabel()
+                        }
+                    
+                    Button("Apply") {
+                        commitSelectedBoxLabel()
+                    }
+                    
+                    Button(role: .destructive) {
+                        deleteSelectedBox()
+                    } label: {
+                        Label("Delete", systemImage: "trash")
+                    }
+                }
+                
+                Text("Click the filled label banner on a box to focus this field and rename it.")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        } else {
+            Text("Click-drag on the image to draw a bounding box. Click a box or its label banner to select it.")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var effectiveDefaultNewLabel: String {
+        let trimmed = labelEditorText.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmed.isEmpty {
+            return trimmed
+        }
+        if let current = store.currentDocument,
+           let selected = selectedBoxID,
+           let box = current.objects.first(where: { $0.id == selected }) {
+            let selectedLabel = box.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !selectedLabel.isEmpty {
+                return selectedLabel
+            }
+        }
+        return "object"
+    }
+    
+    private func selectedBox(in document: ImageAnnotationDocument) -> AnnotationBoundingBox? {
+        guard let selectedBoxID else { return nil }
+        return document.objects.first(where: { $0.id == selectedBoxID })
+    }
+    
+    private func setSelectedBox(_ id: UUID?, focusLabelEditor: Bool) {
+        selectedBoxID = id
+        if let document = store.currentDocument,
+           let id,
+           let box = document.objects.first(where: { $0.id == id }) {
+            labelEditorText = box.label
+            if focusLabelEditor {
+                DispatchQueue.main.async {
+                    isLabelEditorFocused = true
+                }
+            }
+        } else {
+            labelEditorText = ""
+        }
+    }
+    
+    private func syncSelectionWithCurrentDocument(resetSelection: Bool) {
+        guard let document = store.currentDocument else {
+            selectedBoxID = nil
+            labelEditorText = ""
+            return
+        }
+        
+        if resetSelection {
+            selectedBoxID = nil
+            labelEditorText = ""
+            return
+        }
+        
+        guard let selectedBoxID else {
+            return
+        }
+        
+        if let selectedBox = document.objects.first(where: { $0.id == selectedBoxID }) {
+            if !isLabelEditorFocused {
+                labelEditorText = selectedBox.label
+            }
+        } else {
+            self.selectedBoxID = nil
+            if !isLabelEditorFocused {
+                labelEditorText = ""
+            }
+        }
+    }
+    
+    private func commitSelectedBoxLabel() {
+        guard let document = store.currentDocument,
+              let selectedBoxID,
+              let index = document.objects.firstIndex(where: { $0.id == selectedBoxID }) else {
+            return
+        }
+        
+        let trimmed = labelEditorText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            labelEditorText = document.objects[index].label
+            return
+        }
+        
+        guard document.objects[index].label != trimmed else {
+            return
+        }
+        
+        var updated = document.objects
+        updated[index].label = trimmed
+        store.updateObjectsForCurrentImage(updated)
+    }
+    
+    private func deleteSelectedBox() {
+        guard let document = store.currentDocument, let selectedBoxID else {
+            return
+        }
+        let updated = document.objects.filter { $0.id != selectedBoxID }
+        store.updateObjectsForCurrentImage(updated)
+        self.selectedBoxID = nil
+        labelEditorText = ""
+    }
+    
+    private func coordinatesSummary(for box: AnnotationBoundingBox) -> String {
+        "(\(Int(box.xMin.rounded())), \(Int(box.yMin.rounded()))) → (\(Int(box.xMax.rounded())), \(Int(box.yMax.rounded())))"
     }
 }
 

@@ -294,7 +294,7 @@ Requirements:
   - Pascal VOC XML parse/write roundtrip
   - YOLO conversion math
   - `classes.txt` deterministic ID mapping
-- Add a small sample dataset folder for manual QA (if repo policy permits)
+- a small sample dataset folder is not needed. Can use images and XML for testing in `/Users/dpd/Documents/projects/communitycats/imagebyclass` 
 - Document manual QA checklist in README or a dedicated QA doc
 
 Validation:
