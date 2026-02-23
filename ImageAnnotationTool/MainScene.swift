@@ -13,12 +13,7 @@ struct MainScene: Scene {
             SidebarCommands()
             ExportCommands()
             AlwaysOnTopCommand()
-            
-            /// Add a menu with custom commands
             MyCommands()
-            
-            // Remove the "New Window" option from the File menu.
-            CommandGroup(replacing: .newItem, addition: { })
         }
         Settings {
             SettingsWindow()

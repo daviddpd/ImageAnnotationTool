@@ -2,29 +2,56 @@ import SwiftUI
 
 struct GeneralSidebarSection: View {
     
-    @Binding var selection: SidebarPane?
+    @ObservedObject private var store = AnnotationAppStore.shared
     
     var body: some View {
-        
-        Section(header: Text("General")) {
-			
-			NavigationLink {
-				HelloWorldPane()
-			} label: {
-				Label("Hello, World!", systemImage: "text.bubble")
-			}
-			
-			NavigationLink {
-				WhatsUpPane()
-			} label: {
-				Label("What's Up?", systemImage: "questionmark.app.dashed")
-			}
+        Section(header: Text("Files")) {
+            if !store.hasRootDirectory {
+                Button {
+                    store.openDirectoryPanel()
+                } label: {
+                    Label("Open Directory…", systemImage: "folder.badge.plus")
+                }
+            } else if store.imageFiles.isEmpty {
+                Text("No jpg/png images found")
+                    .foregroundColor(.secondary)
+            } else if store.filteredImageFiles.isEmpty {
+                Text("No matching files")
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(store.filteredImageFiles, id: \.self) { fileURL in
+                    FileSidebarRow(fileURL: fileURL)
+                        .tag(Optional(fileURL))
+                }
+            }
         }
     }
 }
 
 struct GeneralSidebarSection_Previews: PreviewProvider {
     static var previews: some View {
-        GeneralSidebarSection(selection: .constant(.helloWorld))
+        List {
+            GeneralSidebarSection()
+        }
+    }
+}
+
+private struct FileSidebarRow: View {
+    @ObservedObject private var store = AnnotationAppStore.shared
+    
+    let fileURL: URL
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(fileURL.lastPathComponent)
+                .lineLimit(1)
+            let relativePath = store.relativePath(for: fileURL)
+            if relativePath != fileURL.lastPathComponent {
+                Text(relativePath)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+        }
     }
 }

@@ -7,22 +7,20 @@ import SwiftUI
 // It seems to be a SwiftUI bug, as it can be reproduced with a minimal list.
 
 struct Sidebar: View {
-        
-    @State var selection: SidebarPane? = nil
     
-    @State var searchText: String = ""
+    @ObservedObject private var store = AnnotationAppStore.shared
     
     var body: some View {
-        List {
-            GeneralSidebarSection(selection: $selection)
-            MoreSidebarSection(selection: $selection)
+        List(selection: selectedImageBinding) {
+            GeneralSidebarSection()
+            MoreSidebarSection()
         }
         .listStyle(SidebarListStyle())
         .frame(minWidth: 180, idealWidth: 180, maxWidth: 300)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             SidebarFooter()
         }
-        .searchable(text: $searchText, placement: .sidebar)
+        .searchable(text: $store.sidebarSearchText, placement: .sidebar, prompt: "Filter files")
         .toolbar {
             ToolbarItem {
                 Button(action: toggleSidebar, label: {
@@ -30,6 +28,13 @@ struct Sidebar: View {
                 })
             }
         }
+    }
+    
+    private var selectedImageBinding: Binding<URL?> {
+        Binding(
+            get: { store.selectedImageURL },
+            set: { store.selectImage(url: $0) }
+        )
     }
 }
 

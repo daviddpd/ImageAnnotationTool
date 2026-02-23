@@ -3,22 +3,20 @@ import SwiftUI
 struct MyCommands: Commands {
     
     var body: some Commands {
-        CommandMenu(Text("My Commands", comment: "My custom actions")) {
+        CommandMenu("Annotate") {
             Button {
-                print("Build!")
+                AnnotationAppStore.shared.goToPreviousImage()
             } label: {
-                Text("Build", comment: "Build something or whatever.")
+                Text("Previous Image")
             }
-            .keyboardShortcut("B", modifiers: [.command])
-            
-            Divider()
+            .keyboardShortcut(.leftArrow, modifiers: [])
             
             Button {
-                print("Do Stuff!")
+                AnnotationAppStore.shared.goToNextImage()
             } label: {
-                Text("Do Stuff", comment: "Do various types of stuff.")
+                Text("Next Image")
             }
-            .keyboardShortcut("D", modifiers: [.command])
+            .keyboardShortcut(.rightArrow, modifiers: [])
         }
     }
 }

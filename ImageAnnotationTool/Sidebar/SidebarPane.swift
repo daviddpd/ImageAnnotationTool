@@ -2,14 +2,8 @@ import Foundation
 
 enum SidebarPane {
     
-    // MARK: General Section
-
-    case helloWorld
-    case whatsUp
-    
-    // MARK: More Section
-    
-    case moreStuff
+    case files
+    case unsavedAnnotations
 }
 
 // MARK: - Protocol Conformances

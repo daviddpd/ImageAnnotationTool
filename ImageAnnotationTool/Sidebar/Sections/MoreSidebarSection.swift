@@ -2,24 +2,33 @@ import SwiftUI
 
 struct MoreSidebarSection: View {
     
-    @Binding var selection: SidebarPane?
+    @ObservedObject private var store = AnnotationAppStore.shared
     
     var body: some View {
-                
-        Section(header: Text("More")) {
-			
-			NavigationLink {
-				MoreStuffPane()
-			} label: {
-				Label("More Stuff", systemImage: "ellipsis.circle")
-			}
-			
+        Section(header: Text("Unsaved Annotations")) {
+            if store.unsavedImageFiles.isEmpty {
+                Text("None")
+                    .foregroundColor(.secondary)
+            } else {
+                ForEach(store.unsavedImageFiles, id: \.self) { fileURL in
+                    HStack(spacing: 6) {
+                        Image(systemName: "circle.fill")
+                            .font(.system(size: 7))
+                            .foregroundColor(.orange)
+                        Text(store.relativePath(for: fileURL))
+                            .lineLimit(1)
+                    }
+                    .tag(Optional(fileURL))
+                }
+            }
         }
     }
 }
 
 struct MoreSidebarSection_Previews: PreviewProvider {
     static var previews: some View {
-        MoreSidebarSection(selection: .constant(.moreStuff))
+        List {
+            MoreSidebarSection()
+        }
     }
 }
