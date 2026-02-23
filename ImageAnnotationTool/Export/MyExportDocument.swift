@@ -54,7 +54,6 @@ struct ImageAnnotationDocument: Hashable {
 @MainActor
 final class AnnotationAppStore: ObservableObject {
     static let shared = AnnotationAppStore()
-    private static let recentDirectoryDefaultsKey = "annotationtool.recentDirectoryPath"
     
     @Published private(set) var rootDirectoryURL: URL?
     @Published private(set) var imageFiles: [URL] = []
@@ -138,18 +137,6 @@ final class AnnotationAppStore: ObservableObject {
         return loadWarningsByImageURL[selectedImageURL]
     }
     
-    var recentDirectoryURL: URL? {
-        guard let path = UserDefaults.standard.string(forKey: Self.recentDirectoryDefaultsKey), !path.isEmpty else {
-            return nil
-        }
-        let url = URL(fileURLWithPath: path)
-        var isDirectory: ObjCBool = false
-        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
-            return nil
-        }
-        return url
-    }
-    
     func openDirectoryPanel() {
         let panel = NSOpenPanel()
         panel.title = "Open Image Directory"
@@ -211,8 +198,6 @@ final class AnnotationAppStore: ObservableObject {
         scanProgressMessage = "Starting scan…"
         statusMessage = "Scanning \(url.lastPathComponent)…"
         
-        UserDefaults.standard.set(url.path, forKey: Self.recentDirectoryDefaultsKey)
-        
         scanTask = Task { [weak self] in
             guard let self else { return }
             do {
@@ -246,11 +231,6 @@ final class AnnotationAppStore: ObservableObject {
                 }
             }
         }
-    }
-    
-    func restoreRecentDirectoryIfAvailable() {
-        guard !hasRootDirectory, !isScanningDirectory, let recentDirectoryURL else { return }
-        loadDirectory(recentDirectoryURL)
     }
     
     func selectImage(url: URL?) {

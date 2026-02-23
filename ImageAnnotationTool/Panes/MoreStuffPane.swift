@@ -30,6 +30,7 @@ final class AnnotationCanvasNSView: NSView {
     private let handleSize: CGFloat = 8
     private let minBoxDimensionInPixels: CGFloat = 4
     private let labelBannerHeight: CGFloat = 44
+    private let labelBannerGap: CGFloat = 2
     private let maxLabelFontSize: CGFloat = 34
     
     private var image: NSImage?
@@ -226,7 +227,7 @@ final class AnnotationCanvasNSView: NSView {
         
         let bannerRect = labelBannerRect(forBoxRect: rect)
         bannerColor.setFill()
-        NSBezierPath(rect: bannerRect).fill()
+        NSBezierPath(roundedRect: bannerRect, xRadius: 4, yRadius: 4).fill()
         
         let labelAttributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.systemFont(
@@ -326,11 +327,24 @@ final class AnnotationCanvasNSView: NSView {
     }
     
     private func labelBannerRect(forBoxRect rect: CGRect) -> CGRect {
-        CGRect(
+        let bannerHeight = min(labelBannerHeight, max(18, rect.height))
+        let preferredY = rect.minY - bannerHeight - labelBannerGap
+        let fallbackY = rect.maxY + labelBannerGap
+        let bannerY: CGFloat
+        if preferredY >= bounds.minY + canvasInset {
+            bannerY = preferredY
+        } else if fallbackY + bannerHeight <= bounds.maxY - canvasInset {
+            bannerY = fallbackY
+        } else {
+            // Last resort: keep the banner visible near the box without changing box geometry.
+            bannerY = clamp(preferredY, min: bounds.minY + canvasInset, max: max(bounds.minY + canvasInset, bounds.maxY - canvasInset - bannerHeight))
+        }
+        
+        return CGRect(
             x: rect.minX,
-            y: rect.minY,
+            y: bannerY,
             width: rect.width,
-            height: min(labelBannerHeight, max(18, rect.height))
+            height: bannerHeight
         )
     }
     

@@ -20,7 +20,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         menuBarButton = MenuBarButton()
-        AnnotationAppStore.shared.restoreRecentDirectoryIfAvailable()
     }
         
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {

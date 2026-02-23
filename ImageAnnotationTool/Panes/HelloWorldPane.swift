@@ -39,13 +39,6 @@ struct HelloWorldPane: View {
                 } label: {
                     Label("Open Directory…", systemImage: "folder")
                 }
-                if let recent = store.recentDirectoryURL {
-                    Button {
-                        store.requestOpenDirectory(recent)
-                    } label: {
-                        Label("Reopen Recent: \(recent.lastPathComponent)", systemImage: "clock.arrow.circlepath")
-                    }
-                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         } else if store.isScanningDirectory {

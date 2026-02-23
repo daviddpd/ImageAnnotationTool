@@ -3,6 +3,7 @@ import SwiftUI
 struct GeneralSidebarSection: View {
     
     @ObservedObject private var store = AnnotationAppStore.shared
+    @State private var expandedDirectoryIDs: Set<String> = []
     
     var body: some View {
         Section(header: Text("Files")) {
@@ -26,13 +27,34 @@ struct GeneralSidebarSection: View {
             } else if store.filteredImageFiles.isEmpty {
                 Text("No matching files")
                     .foregroundColor(.secondary)
+            } else if let rootNode = fileTreeRootNode {
+                FileTreeNodeRow(
+                    node: rootNode,
+                    expandedDirectoryIDs: $expandedDirectoryIDs,
+                    isSearchActive: isSearchActive
+                )
             } else {
-                ForEach(store.filteredImageFiles, id: \.self) { fileURL in
-                    FileSidebarRow(fileURL: fileURL)
-                        .tag(Optional(fileURL))
-                }
+                Text("No matching files")
+                    .foregroundColor(.secondary)
             }
         }
+        .onChange(of: store.rootDirectoryURL?.path) { _ in
+            expandedDirectoryIDs.removeAll()
+        }
+        .onChange(of: store.isScanningDirectory) { isScanning in
+            if isScanning {
+                expandedDirectoryIDs.removeAll()
+            }
+        }
+    }
+    
+    private var isSearchActive: Bool {
+        !store.sidebarSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
+    private var fileTreeRootNode: FileTreeNode? {
+        guard let rootDirectoryURL = store.rootDirectoryURL else { return nil }
+        return FileTreeNode.makeRoot(rootDirectoryURL: rootDirectoryURL, fileURLs: store.filteredImageFiles)
     }
 }
 
@@ -67,5 +89,147 @@ private struct FileSidebarRow: View {
                     .lineLimit(1)
             }
         }
+    }
+}
+
+private struct FileTreeNode: Identifiable, Hashable {
+    enum Kind: Hashable {
+        case directory
+        case file
+    }
+    
+    let id: String
+    let name: String
+    let url: URL
+    let kind: Kind
+    let children: [FileTreeNode]
+    
+    var isDirectory: Bool {
+        kind == .directory
+    }
+    
+    static func makeRoot(rootDirectoryURL: URL, fileURLs: [URL]) -> FileTreeNode {
+        FileTreeNode(
+            id: rootDirectoryURL.path,
+            name: rootDirectoryURL.lastPathComponent,
+            url: rootDirectoryURL,
+            kind: .directory,
+            children: makeChildren(parentDirectoryURL: rootDirectoryURL, fileURLs: fileURLs)
+        )
+    }
+    
+    private static func makeChildren(parentDirectoryURL: URL, fileURLs: [URL]) -> [FileTreeNode] {
+        var directFiles: [URL] = []
+        var groupedByFirstDirectory: [String: [URL]] = [:]
+        
+        for fileURL in fileURLs {
+            let remainingComponents = pathComponents(relativeFrom: parentDirectoryURL, to: fileURL)
+            guard let first = remainingComponents.first else { continue }
+            if remainingComponents.count == 1 {
+                directFiles.append(fileURL)
+            } else {
+                groupedByFirstDirectory[first, default: []].append(fileURL)
+            }
+        }
+        
+        let directoryNodes = groupedByFirstDirectory.keys
+            .sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+            .map { directoryName in
+                let directoryURL = parentDirectoryURL.appendingPathComponent(directoryName, isDirectory: true)
+                return FileTreeNode(
+                    id: directoryURL.path,
+                    name: directoryName,
+                    url: directoryURL,
+                    kind: .directory,
+                    children: makeChildren(
+                        parentDirectoryURL: directoryURL,
+                        fileURLs: groupedByFirstDirectory[directoryName] ?? []
+                    )
+                )
+            }
+        
+        let fileNodes = directFiles
+            .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+            .map { fileURL in
+                FileTreeNode(
+                    id: fileURL.path,
+                    name: fileURL.lastPathComponent,
+                    url: fileURL,
+                    kind: .file,
+                    children: []
+                )
+            }
+        
+        return directoryNodes + fileNodes
+    }
+    
+    private static func pathComponents(relativeFrom parentDirectoryURL: URL, to fileURL: URL) -> [String] {
+        let parentComponents = parentDirectoryURL.standardizedFileURL.pathComponents
+        let fileComponents = fileURL.standardizedFileURL.pathComponents
+        guard fileComponents.count >= parentComponents.count else { return [] }
+        return Array(fileComponents.dropFirst(parentComponents.count))
+    }
+}
+
+private struct FileTreeNodeRow: View {
+    @ObservedObject private var store = AnnotationAppStore.shared
+    
+    let node: FileTreeNode
+    @Binding var expandedDirectoryIDs: Set<String>
+    let isSearchActive: Bool
+    
+    var body: some View {
+        Group {
+            if node.isDirectory {
+                DisclosureGroup(isExpanded: expansionBinding) {
+                    if node.children.isEmpty {
+                        Text("No images")
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(node.children) { child in
+                            FileTreeNodeRow(
+                                node: child,
+                                expandedDirectoryIDs: $expandedDirectoryIDs,
+                                isSearchActive: isSearchActive
+                            )
+                        }
+                    }
+                } label: {
+                    Label(node.name, systemImage: "folder")
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                }
+            } else {
+                HStack(spacing: 6) {
+                    Image(systemName: "photo")
+                        .foregroundColor(.secondary)
+                    FileSidebarRow(fileURL: node.url)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    store.selectImage(url: node.url)
+                }
+                .tag(Optional(node.url))
+            }
+        }
+    }
+    
+    private var expansionBinding: Binding<Bool> {
+        Binding(
+            get: {
+                if isSearchActive {
+                    return true
+                }
+                return expandedDirectoryIDs.contains(node.id)
+            },
+            set: { isExpanded in
+                guard !isSearchActive else { return }
+                if isExpanded {
+                    expandedDirectoryIDs.insert(node.id)
+                } else {
+                    expandedDirectoryIDs.remove(node.id)
+                }
+            }
+        )
     }
 }
