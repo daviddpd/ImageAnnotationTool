@@ -12,6 +12,14 @@ struct GeneralSidebarSection: View {
                 } label: {
                     Label("Open Directory…", systemImage: "folder.badge.plus")
                 }
+            } else if store.isScanningDirectory {
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(store.scanProgressMessage ?? "Scanning directory…")
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
             } else if store.imageFiles.isEmpty {
                 Text("No jpg/png images found")
                     .foregroundColor(.secondary)
@@ -45,6 +53,12 @@ private struct FileSidebarRow: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(fileURL.lastPathComponent)
                 .lineLimit(1)
+            if store.loadWarningsByImageURL[fileURL] != nil {
+                Text("Annotation warning")
+                    .font(.caption2)
+                    .foregroundColor(.orange)
+                    .lineLimit(1)
+            }
             let relativePath = store.relativePath(for: fileURL)
             if relativePath != fileURL.lastPathComponent {
                 Text(relativePath)

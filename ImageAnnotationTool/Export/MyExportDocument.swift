@@ -54,17 +54,24 @@ struct ImageAnnotationDocument: Hashable {
 @MainActor
 final class AnnotationAppStore: ObservableObject {
     static let shared = AnnotationAppStore()
+    private static let recentDirectoryDefaultsKey = "annotationtool.recentDirectoryPath"
     
     @Published private(set) var rootDirectoryURL: URL?
     @Published private(set) var imageFiles: [URL] = []
     @Published private(set) var selectedImageURL: URL?
     @Published private(set) var documentsByImageURL: [URL: ImageAnnotationDocument] = [:]
     @Published private(set) var dirtyImageURLs: Set<URL> = []
+    @Published private(set) var loadWarningsByImageURL: [URL: String] = [:]
+    @Published private(set) var isScanningDirectory = false
+    @Published private(set) var scanProgressMessage: String?
     @Published var sidebarSearchText: String = ""
     @Published var lastErrorMessage: String?
     @Published private(set) var statusMessage: String?
     
     private let fileManager = FileManager.default
+    private var scanTask: Task<Void, Never>?
+    private var activeScanID = UUID()
+    private var lastSavedObjectsByImageURL: [URL: [AnnotationBoundingBox]] = [:]
     
     private init() {}
     
@@ -118,6 +125,31 @@ final class AnnotationAppStore: ObservableObject {
         !dirtyImageURLs.isEmpty
     }
     
+    var canSaveCurrent: Bool {
+        selectedImageURL != nil && !isScanningDirectory
+    }
+    
+    var canSaveAllUnsaved: Bool {
+        hasRootDirectory && !unsavedImageFiles.isEmpty && !isScanningDirectory
+    }
+    
+    var currentImageWarningMessage: String? {
+        guard let selectedImageURL else { return nil }
+        return loadWarningsByImageURL[selectedImageURL]
+    }
+    
+    var recentDirectoryURL: URL? {
+        guard let path = UserDefaults.standard.string(forKey: Self.recentDirectoryDefaultsKey), !path.isEmpty else {
+            return nil
+        }
+        let url = URL(fileURLWithPath: path)
+        var isDirectory: ObjCBool = false
+        guard fileManager.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue else {
+            return nil
+        }
+        return url
+    }
+    
     func openDirectoryPanel() {
         let panel = NSOpenPanel()
         panel.title = "Open Image Directory"
@@ -162,26 +194,67 @@ final class AnnotationAppStore: ObservableObject {
     }
     
     func loadDirectory(_ url: URL) {
-        do {
-            let files = try Self.scanImageFiles(in: url)
-            rootDirectoryURL = url
-            imageFiles = files
-            selectedImageURL = nil
-            documentsByImageURL.removeAll()
-            dirtyImageURLs.removeAll()
-            sidebarSearchText = ""
-            lastErrorMessage = nil
-            statusMessage = "Loaded \(files.count) image\(files.count == 1 ? "" : "s")"
-            
-            if let first = files.first {
-                selectImage(url: first)
+        let scanID = UUID()
+        activeScanID = scanID
+        scanTask?.cancel()
+        
+        rootDirectoryURL = url
+        imageFiles = []
+        selectedImageURL = nil
+        documentsByImageURL.removeAll()
+        dirtyImageURLs.removeAll()
+        loadWarningsByImageURL.removeAll()
+        lastSavedObjectsByImageURL.removeAll()
+        sidebarSearchText = ""
+        lastErrorMessage = nil
+        isScanningDirectory = true
+        scanProgressMessage = "Starting scan…"
+        statusMessage = "Scanning \(url.lastPathComponent)…"
+        
+        UserDefaults.standard.set(url.path, forKey: Self.recentDirectoryDefaultsKey)
+        
+        scanTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let files = try await Self.scanImageFilesAsync(in: url) { progress in
+                    await MainActor.run {
+                        guard self.activeScanID == scanID else { return }
+                        self.scanProgressMessage = progress.message
+                        self.statusMessage = progress.message
+                    }
+                }
+                
+                guard !Task.isCancelled else { return }
+                await MainActor.run {
+                    guard self.activeScanID == scanID else { return }
+                    self.finishDirectoryLoad(url: url, files: files)
+                }
+            } catch is CancellationError {
+                await MainActor.run {
+                    guard self.activeScanID == scanID else { return }
+                    self.isScanningDirectory = false
+                    self.scanProgressMessage = nil
+                    self.statusMessage = "Directory scan cancelled"
+                }
+            } catch {
+                await MainActor.run {
+                    guard self.activeScanID == scanID else { return }
+                    self.isScanningDirectory = false
+                    self.scanProgressMessage = nil
+                    self.lastErrorMessage = "Failed to open directory: \(error.localizedDescription)"
+                    self.statusMessage = "Directory scan failed"
+                }
             }
-        } catch {
-            lastErrorMessage = "Failed to open directory: \(error.localizedDescription)"
         }
     }
     
+    func restoreRecentDirectoryIfAvailable() {
+        guard !hasRootDirectory, !isScanningDirectory, let recentDirectoryURL else { return }
+        loadDirectory(recentDirectoryURL)
+    }
+    
     func selectImage(url: URL?) {
+        guard !isScanningDirectory else { return }
         guard let url else {
             selectedImageURL = nil
             return
@@ -196,17 +269,20 @@ final class AnnotationAppStore: ObservableObject {
     }
     
     func goToPreviousImage() {
+        guard !isScanningDirectory else { return }
         guard let currentImageIndex, currentImageIndex > 0 else { return }
         selectImage(url: imageFiles[currentImageIndex - 1])
     }
     
     func goToNextImage() {
+        guard !isScanningDirectory else { return }
         guard let currentImageIndex, currentImageIndex < imageFiles.count - 1 else { return }
         selectImage(url: imageFiles[currentImageIndex + 1])
     }
     
     @discardableResult
     func saveCurrentAnnotations() -> Bool {
+        guard !isScanningDirectory else { return false }
         guard let selectedImageURL else { return false }
         return saveAnnotations(for: selectedImageURL)
     }
@@ -219,6 +295,7 @@ final class AnnotationAppStore: ObservableObject {
     
     @discardableResult
     func saveAllUnsavedAnnotations() -> Bool {
+        guard !isScanningDirectory else { return false }
         guard let _ = rootDirectoryURL else { return false }
         let urlsToSave = unsavedImageFiles
         guard !urlsToSave.isEmpty else {
@@ -248,6 +325,20 @@ final class AnnotationAppStore: ObservableObject {
     }
     
     func terminationReplyForUnsavedChanges() -> NSApplication.TerminateReply {
+        if isScanningDirectory {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "A directory scan is in progress."
+            alert.informativeText = "Cancel the scan and quit, or continue scanning."
+            alert.addButton(withTitle: "Cancel Scan and Quit")
+            alert.addButton(withTitle: "Continue Scanning")
+            if alert.runModal() == .alertFirstButtonReturn {
+                scanTask?.cancel()
+                return .terminateNow
+            }
+            return .terminateCancel
+        }
+        
         guard !dirtyImageURLs.isEmpty else {
             return .terminateNow
         }
@@ -271,11 +362,13 @@ final class AnnotationAppStore: ObservableObject {
         }
     }
     
-    func updateObjectsForCurrentImage(_ objects: [AnnotationBoundingBox]) {
-        guard let selectedImageURL, var document = documentsByImageURL[selectedImageURL] else { return }
-        document.objects = objects
-        documentsByImageURL[selectedImageURL] = document
-        markDirty(true, for: selectedImageURL)
+    func updateObjectsForCurrentImage(
+        _ objects: [AnnotationBoundingBox],
+        undoManager: UndoManager? = nil,
+        actionName: String = "Edit Bounding Boxes"
+    ) {
+        guard let selectedImageURL else { return }
+        updateObjects(for: selectedImageURL, objects: objects, undoManager: undoManager, actionName: actionName)
     }
     
     func relativePath(for url: URL) -> String {
@@ -314,6 +407,35 @@ final class AnnotationAppStore: ObservableObject {
         // TODO(Stage 002): interactive canvas edits will call updateObjectsForCurrentImage(_:)
     }
     
+    @discardableResult
+    func updateObjects(
+        for imageURL: URL,
+        objects: [AnnotationBoundingBox],
+        undoManager: UndoManager? = nil,
+        actionName: String = "Edit Bounding Boxes"
+    ) -> Bool {
+        guard var document = documentsByImageURL[imageURL] else { return false }
+        let previousObjects = document.objects
+        guard previousObjects != objects else { return false }
+        
+        if let undoManager {
+            undoManager.registerUndo(withTarget: self) { target in
+                _ = target.updateObjects(
+                    for: imageURL,
+                    objects: previousObjects,
+                    undoManager: undoManager,
+                    actionName: actionName
+                )
+            }
+            undoManager.setActionName(actionName)
+        }
+        
+        document.objects = objects
+        documentsByImageURL[imageURL] = document
+        refreshDirtyState(for: imageURL)
+        return true
+    }
+    
     private func markDirty(_ isDirty: Bool, for imageURL: URL) {
         guard var document = documentsByImageURL[imageURL] else { return }
         document.isDirty = isDirty
@@ -323,6 +445,12 @@ final class AnnotationAppStore: ObservableObject {
         } else {
             dirtyImageURLs.remove(imageURL)
         }
+    }
+    
+    private func refreshDirtyState(for imageURL: URL) {
+        guard let document = documentsByImageURL[imageURL] else { return }
+        let baseline = lastSavedObjectsByImageURL[imageURL] ?? []
+        markDirty(document.objects != baseline, for: imageURL)
     }
     
     @discardableResult
@@ -342,6 +470,7 @@ final class AnnotationAppStore: ObservableObject {
             let classes = try ClassesFileStore.loadAndMergeClasses(rootDirectory: rootDirectoryURL, adding: labels)
             try PascalVOCStore.write(document: document)
             try YOLOStore.write(document: document, classes: classes)
+            lastSavedObjectsByImageURL[imageURL] = document.objects
             markDirty(false, for: imageURL)
             statusMessage = "Saved \(document.filename)"
             lastErrorMessage = nil
@@ -360,8 +489,11 @@ final class AnnotationAppStore: ObservableObject {
         do {
             let document = try PascalVOCStore.loadDocument(for: imageURL)
             documentsByImageURL[imageURL] = document
+            lastSavedObjectsByImageURL[imageURL] = document.objects
+            loadWarningsByImageURL.removeValue(forKey: imageURL)
         } catch {
-            lastErrorMessage = "Failed to load annotations for \(imageURL.lastPathComponent): \(error.localizedDescription)"
+            let annotationError = "Failed to load annotations for \(imageURL.lastPathComponent): \(error.localizedDescription)"
+            lastErrorMessage = annotationError
             do {
                 let size = try ImageMetadataReader.readSize(for: imageURL)
                 documentsByImageURL[imageURL] = ImageAnnotationDocument(
@@ -372,13 +504,51 @@ final class AnnotationAppStore: ObservableObject {
                     isDirty: false,
                     loadedFromXML: false
                 )
+                lastSavedObjectsByImageURL[imageURL] = []
+                loadWarningsByImageURL[imageURL] = "Annotation XML could not be loaded. Using empty annotations. \(error.localizedDescription)"
             } catch {
                 lastErrorMessage = "Failed to load image metadata for \(imageURL.lastPathComponent): \(error.localizedDescription)"
+                loadWarningsByImageURL[imageURL] = "Image could not be read: \(error.localizedDescription)"
             }
         }
     }
     
-    private static func scanImageFiles(in root: URL) throws -> [URL] {
+    private func finishDirectoryLoad(url: URL, files: [URL]) {
+        guard rootDirectoryURL == url else { return }
+        isScanningDirectory = false
+        scanProgressMessage = nil
+        statusMessage = "Loaded \(files.count) image\(files.count == 1 ? "" : "s")"
+        imageFiles = files
+        
+        if let first = files.first {
+            selectImage(url: first)
+        }
+    }
+    
+    private struct DirectoryScanProgress: Sendable {
+        let filesVisited: Int
+        let imagesMatched: Int
+        
+        var message: String {
+            "Scanning… \(filesVisited) files, \(imagesMatched) image\(imagesMatched == 1 ? "" : "s")"
+        }
+    }
+    
+    nonisolated private static func scanImageFilesAsync(
+        in root: URL,
+        progress: @escaping @Sendable (DirectoryScanProgress) async -> Void
+    ) async throws -> [URL] {
+        try await Task.detached(priority: .userInitiated) {
+            try await scanImageFiles(in: root) { update in
+                await progress(update)
+            }
+        }.value
+    }
+    
+    nonisolated private static func scanImageFiles(
+        in root: URL,
+        progress: (@Sendable (DirectoryScanProgress) async -> Void)? = nil
+    ) async throws -> [URL] {
         let resourceKeys: [URLResourceKey] = [.isRegularFileKey, .isDirectoryKey, .nameKey]
         guard let enumerator = FileManager.default.enumerator(
             at: root,
@@ -389,13 +559,25 @@ final class AnnotationAppStore: ObservableObject {
         }
         
         var results: [URL] = []
-        for case let fileURL as URL in enumerator {
+        var filesVisited = 0
+        while let fileURL = enumerator.nextObject() as? URL {
+            try Task.checkCancellation()
             let values = try fileURL.resourceValues(forKeys: Set(resourceKeys))
             guard values.isRegularFile == true else { continue }
+            filesVisited += 1
             let ext = fileURL.pathExtension.lowercased()
             if ["jpg", "jpeg", "png"].contains(ext) {
                 results.append(fileURL)
             }
+            if filesVisited == 1 || filesVisited % 250 == 0 {
+                if let progress {
+                    await progress(.init(filesVisited: filesVisited, imagesMatched: results.count))
+                }
+            }
+        }
+        
+        if let progress {
+            await progress(.init(filesVisited: filesVisited, imagesMatched: results.count))
         }
         
         return results.sorted {

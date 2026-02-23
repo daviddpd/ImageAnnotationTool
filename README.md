@@ -17,7 +17,6 @@ This codebase currently includes the original template's macOS SwiftUI scaffoldi
 - Search UI examples in the sidebar and toolbar.
 - Drag-and-drop example support in a detail pane.
 - A custom About window and Attributions window in SwiftUI.
-- A window "always on top" toggle.
 - Custom app menu commands.
 - Export command scaffolding.
 - A tabbed settings window.
@@ -30,3 +29,8 @@ Template origin screenshot (from the original Sidebar App template):
 
 - Original template foundation: Simon Weniger (`swift-macos-template` / "Sidebar App")
 - Large parts of this app were developed with OpenAI Codex (Codex app).
+
+# QA / Validation
+
+- Manual checklist: `QA/Manual-QA-Checklist.md`
+- Stage 005 local validation script: `./Tests/run-stage005-validation.sh`

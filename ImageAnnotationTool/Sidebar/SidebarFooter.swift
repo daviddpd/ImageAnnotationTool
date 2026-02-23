@@ -12,6 +12,16 @@ struct SidebarFooter: View {
             Text("\(store.imageFiles.count) images • \(store.unsavedImageFiles.count) unsaved")
                 .font(.footnote)
                 .foregroundColor(.secondary)
+            if store.isScanningDirectory {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(store.scanProgressMessage ?? "Scanning…")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                }
+            }
             if let status = store.statusMessage {
                 Text(status)
                     .font(.caption)

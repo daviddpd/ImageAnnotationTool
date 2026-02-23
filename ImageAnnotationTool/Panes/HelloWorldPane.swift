@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HelloWorldPane: View {
     @ObservedObject private var store = AnnotationAppStore.shared
+    @Environment(\.undoManager) private var undoManager
     
     @State private var selectedBoxID: UUID?
     @State private var labelEditorText = ""
@@ -38,8 +39,28 @@ struct HelloWorldPane: View {
                 } label: {
                     Label("Open Directory…", systemImage: "folder")
                 }
+                if let recent = store.recentDirectoryURL {
+                    Button {
+                        store.requestOpenDirectory(recent)
+                    } label: {
+                        Label("Reopen Recent: \(recent.lastPathComponent)", systemImage: "clock.arrow.circlepath")
+                    }
+                }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        } else if store.isScanningDirectory {
+            VStack(spacing: 12) {
+                ProgressView()
+                Text(store.scanProgressMessage ?? "Scanning directory…")
+                    .foregroundColor(.secondary)
+                if let root = store.rootDirectoryURL {
+                    Text(root.path)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if store.imageFiles.isEmpty {
             VStack(spacing: 12) {
                 Text("No supported images were found in the selected directory.")
@@ -63,7 +84,11 @@ struct HelloWorldPane: View {
                         selectedBoxID: selectedBoxID,
                         defaultNewLabel: effectiveDefaultNewLabel,
                         onBoxesChanged: { updatedBoxes in
-                            store.updateObjectsForCurrentImage(updatedBoxes)
+                            store.updateObjectsForCurrentImage(
+                                updatedBoxes,
+                                undoManager: undoManager,
+                                actionName: "Edit Bounding Boxes"
+                            )
                         },
                         onSelectionChanged: { newSelection in
                             setSelectedBox(newSelection, focusLabelEditor: false)
@@ -141,6 +166,11 @@ struct HelloWorldPane: View {
                     .font(.caption)
                     .foregroundColor(.red)
                     .lineLimit(1)
+            } else if let warningMessage = store.currentImageWarningMessage {
+                Text(warningMessage)
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                    .lineLimit(2)
             } else {
                 Text(" ")
                     .font(.caption)
@@ -288,7 +318,11 @@ struct HelloWorldPane: View {
         
         var updated = document.objects
         updated[index].label = trimmed
-        store.updateObjectsForCurrentImage(updated)
+        store.updateObjectsForCurrentImage(
+            updated,
+            undoManager: undoManager,
+            actionName: "Rename Bounding Box"
+        )
     }
     
     private func deleteSelectedBox() {
@@ -296,7 +330,11 @@ struct HelloWorldPane: View {
             return
         }
         let updated = document.objects.filter { $0.id != selectedBoxID }
-        store.updateObjectsForCurrentImage(updated)
+        store.updateObjectsForCurrentImage(
+            updated,
+            undoManager: undoManager,
+            actionName: "Delete Bounding Box"
+        )
         self.selectedBoxID = nil
         labelEditorText = ""
     }
