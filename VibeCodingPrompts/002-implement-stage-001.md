@@ -277,6 +277,7 @@ Requirements:
 
 Validation:
 - Stress test with nested folders and mixed file types.
+    - can use images in `/Users/dpd/Documents/projects/communitycats/imagebyclass` for testing. You can modifed/update xml and txt as needed durning testing.
 ```
 
 ---
