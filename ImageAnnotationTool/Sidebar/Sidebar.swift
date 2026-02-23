@@ -11,11 +11,14 @@ struct Sidebar: View {
     @ObservedObject private var store = AnnotationAppStore.shared
     
     var body: some View {
-        List(selection: selectedImageBinding) {
+        VStack(spacing: 0) {
             FilesSidebarSection()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            
+            Divider()
+            
             UnsavedAnnotationsSidebarSection()
         }
-        .listStyle(SidebarListStyle())
         .frame(minWidth: 180, idealWidth: 180, maxWidth: 300)
         .safeAreaInset(edge: .bottom, spacing: 0) {
             SidebarFooter()
@@ -28,13 +31,6 @@ struct Sidebar: View {
                 })
             }
         }
-    }
-    
-    private var selectedImageBinding: Binding<URL?> {
-        Binding(
-            get: { store.selectedImageURL },
-            set: { store.selectImage(url: $0) }
-        )
     }
 }
 

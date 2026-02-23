@@ -51,6 +51,39 @@ struct ImageAnnotationDocument: Hashable {
     }
 }
 
+struct SidebarFileTreeNode: Identifiable, Hashable, Sendable {
+    enum Kind: String, Hashable, Sendable {
+        case directory
+        case file
+    }
+    
+    let id: String
+    let name: String
+    let url: URL
+    let relativePath: String
+    let searchKey: String
+    let kind: Kind
+    let children: [SidebarFileTreeNode]
+    let descendantFileCount: Int
+    
+    var isDirectory: Bool {
+        kind == .directory
+    }
+    
+    func replacingChildren(_ children: [SidebarFileTreeNode]) -> SidebarFileTreeNode {
+        SidebarFileTreeNode(
+            id: id,
+            name: name,
+            url: url,
+            relativePath: relativePath,
+            searchKey: searchKey,
+            kind: kind,
+            children: children,
+            descendantFileCount: children.reduce(0) { $0 + $1.descendantFileCount }
+        )
+    }
+}
+
 @MainActor
 final class AnnotationAppStore: ObservableObject {
     static let shared = AnnotationAppStore()
@@ -62,17 +95,28 @@ final class AnnotationAppStore: ObservableObject {
     @Published private(set) var dirtyImageURLs: Set<URL> = []
     @Published private(set) var unsavedImageFiles: [URL] = []
     @Published private(set) var loadWarningsByImageURL: [URL: String] = [:]
+    @Published private(set) var displayedFileTreeRoot: SidebarFileTreeNode?
+    @Published private(set) var fileTreeStructureVersion: UInt64 = 0
+    @Published private(set) var fileTreeDecorationsVersion: UInt64 = 0
+    @Published private(set) var isFilteringFiles = false
     @Published private(set) var isScanningDirectory = false
     @Published private(set) var scanProgressMessage: String?
-    @Published var sidebarSearchText: String = ""
+    @Published var sidebarSearchText: String = "" {
+        didSet {
+            scheduleSidebarTreeFilter()
+        }
+    }
     @Published var lastErrorMessage: String?
     @Published private(set) var statusMessage: String?
     
     private let fileManager = FileManager.default
     private var scanTask: Task<Void, Never>?
+    private var sidebarFilterTask: Task<Void, Never>?
     private var activeScanID = UUID()
+    private var activeSidebarFilterID = UUID()
     private var lastSavedObjectsByImageURL: [URL: [AnnotationBoundingBox]] = [:]
     private var imageIndexByURL: [URL: Int] = [:]
+    private var fullFileTreeRoot: SidebarFileTreeNode?
     
     private init() {}
     
@@ -135,6 +179,10 @@ final class AnnotationAppStore: ObservableObject {
         return loadWarningsByImageURL[selectedImageURL]
     }
     
+    var isSidebarSearchActive: Bool {
+        !sidebarSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
     func openDirectoryPanel() {
         let panel = NSOpenPanel()
         panel.title = "Open Image Directory"
@@ -182,6 +230,7 @@ final class AnnotationAppStore: ObservableObject {
         let scanID = UUID()
         activeScanID = scanID
         scanTask?.cancel()
+        sidebarFilterTask?.cancel()
         
         rootDirectoryURL = url
         imageFiles = []
@@ -191,6 +240,11 @@ final class AnnotationAppStore: ObservableObject {
         dirtyImageURLs.removeAll()
         unsavedImageFiles = []
         loadWarningsByImageURL.removeAll()
+        fullFileTreeRoot = nil
+        displayedFileTreeRoot = nil
+        fileTreeStructureVersion &+= 1
+        fileTreeDecorationsVersion &+= 1
+        isFilteringFiles = false
         lastSavedObjectsByImageURL.removeAll()
         sidebarSearchText = ""
         lastErrorMessage = nil
@@ -209,10 +263,17 @@ final class AnnotationAppStore: ObservableObject {
                     }
                 }
                 
+                await MainActor.run {
+                    guard self.activeScanID == scanID else { return }
+                    self.scanProgressMessage = "Building file tree…"
+                    self.statusMessage = "Building file tree…"
+                }
+                let fileTreeRoot = try await Self.buildSidebarFileTreeAsync(rootDirectoryURL: url, fileURLs: files)
+                
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard self.activeScanID == scanID else { return }
-                    self.finishDirectoryLoad(url: url, files: files)
+                    self.finishDirectoryLoad(url: url, files: files, fileTreeRoot: fileTreeRoot)
                 }
             } catch is CancellationError {
                 await MainActor.run {
@@ -432,6 +493,7 @@ final class AnnotationAppStore: ObservableObject {
         
         if dirtySetChanged {
             rebuildUnsavedImageFilesCache()
+            bumpFileTreeDecorationsVersion()
         }
     }
     
@@ -478,7 +540,9 @@ final class AnnotationAppStore: ObservableObject {
             let document = try PascalVOCStore.loadDocument(for: imageURL)
             documentsByImageURL[imageURL] = document
             lastSavedObjectsByImageURL[imageURL] = document.objects
-            loadWarningsByImageURL.removeValue(forKey: imageURL)
+            if loadWarningsByImageURL.removeValue(forKey: imageURL) != nil {
+                bumpFileTreeDecorationsVersion()
+            }
         } catch {
             let annotationError = "Failed to load annotations for \(imageURL.lastPathComponent): \(error.localizedDescription)"
             lastErrorMessage = annotationError
@@ -493,21 +557,32 @@ final class AnnotationAppStore: ObservableObject {
                     loadedFromXML: false
                 )
                 lastSavedObjectsByImageURL[imageURL] = []
-                loadWarningsByImageURL[imageURL] = "Annotation XML could not be loaded. Using empty annotations. \(error.localizedDescription)"
+                let warning = "Annotation XML could not be loaded. Using empty annotations. \(error.localizedDescription)"
+                if loadWarningsByImageURL[imageURL] != warning {
+                    loadWarningsByImageURL[imageURL] = warning
+                    bumpFileTreeDecorationsVersion()
+                }
             } catch {
                 lastErrorMessage = "Failed to load image metadata for \(imageURL.lastPathComponent): \(error.localizedDescription)"
-                loadWarningsByImageURL[imageURL] = "Image could not be read: \(error.localizedDescription)"
+                let warning = "Image could not be read: \(error.localizedDescription)"
+                if loadWarningsByImageURL[imageURL] != warning {
+                    loadWarningsByImageURL[imageURL] = warning
+                    bumpFileTreeDecorationsVersion()
+                }
             }
         }
     }
     
-    private func finishDirectoryLoad(url: URL, files: [URL]) {
+    private func finishDirectoryLoad(url: URL, files: [URL], fileTreeRoot: SidebarFileTreeNode) {
         guard rootDirectoryURL == url else { return }
         isScanningDirectory = false
         scanProgressMessage = nil
         statusMessage = "Loaded \(files.count) image\(files.count == 1 ? "" : "s")"
         imageFiles = files
         imageIndexByURL = Dictionary(uniqueKeysWithValues: files.enumerated().map { ($0.element, $0.offset) })
+        fullFileTreeRoot = fileTreeRoot
+        isFilteringFiles = false
+        applyDisplayedSidebarTree(fileTreeRoot)
         rebuildUnsavedImageFilesCache()
         
         if let first = files.first {
@@ -517,6 +592,213 @@ final class AnnotationAppStore: ObservableObject {
     
     private func rebuildUnsavedImageFilesCache() {
         unsavedImageFiles = imageFiles.filter { dirtyImageURLs.contains($0) }
+    }
+    
+    private func scheduleSidebarTreeFilter() {
+        sidebarFilterTask?.cancel()
+        
+        let query = sidebarSearchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let fullFileTreeRoot else {
+            isFilteringFiles = false
+            if displayedFileTreeRoot != nil {
+                applyDisplayedSidebarTree(nil)
+            }
+            return
+        }
+        
+        guard !query.isEmpty else {
+            isFilteringFiles = false
+            applyDisplayedSidebarTree(fullFileTreeRoot)
+            return
+        }
+        
+        isFilteringFiles = true
+        let filterID = UUID()
+        activeSidebarFilterID = filterID
+        
+        sidebarFilterTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await Task.sleep(nanoseconds: 200_000_000)
+            } catch {
+                return
+            }
+            
+            let filtered = await Self.filterSidebarFileTreeAsync(root: fullFileTreeRoot, query: query)
+            guard !Task.isCancelled else { return }
+            
+            await MainActor.run {
+                guard self.activeSidebarFilterID == filterID else { return }
+                self.isFilteringFiles = false
+                self.applyDisplayedSidebarTree(filtered)
+            }
+        }
+    }
+    
+    private func applyDisplayedSidebarTree(_ root: SidebarFileTreeNode?) {
+        displayedFileTreeRoot = root
+        fileTreeStructureVersion &+= 1
+    }
+    
+    private func bumpFileTreeDecorationsVersion() {
+        fileTreeDecorationsVersion &+= 1
+    }
+    
+    nonisolated private static func buildSidebarFileTreeAsync(
+        rootDirectoryURL: URL,
+        fileURLs: [URL]
+    ) async throws -> SidebarFileTreeNode {
+        try await Task.detached(priority: .userInitiated) {
+            try buildSidebarFileTree(rootDirectoryURL: rootDirectoryURL, fileURLs: fileURLs)
+        }.value
+    }
+    
+    nonisolated private static func filterSidebarFileTreeAsync(
+        root: SidebarFileTreeNode,
+        query: String
+    ) async -> SidebarFileTreeNode? {
+        await Task.detached(priority: .userInitiated) {
+            filterSidebarFileTree(root: root, query: query)
+        }.value
+    }
+    
+    nonisolated private static func buildSidebarFileTree(
+        rootDirectoryURL: URL,
+        fileURLs: [URL]
+    ) throws -> SidebarFileTreeNode {
+        final class MutableDirectoryNode {
+            let name: String
+            let url: URL
+            let relativePath: String
+            var directories: [String: MutableDirectoryNode] = [:]
+            var files: [URL] = []
+            
+            init(name: String, url: URL, relativePath: String) {
+                self.name = name
+                self.url = url
+                self.relativePath = relativePath
+            }
+        }
+        
+        let rootNode = MutableDirectoryNode(
+            name: rootDirectoryURL.lastPathComponent,
+            url: rootDirectoryURL,
+            relativePath: ""
+        )
+        let rootPath = rootDirectoryURL.standardizedFileURL.path
+        let prefix = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        
+        for (index, fileURL) in fileURLs.enumerated() {
+            if index % 500 == 0 {
+                try Task.checkCancellation()
+            }
+            let standardizedPath = fileURL.standardizedFileURL.path
+            guard standardizedPath.hasPrefix(prefix) else { continue }
+            let relativePath = String(standardizedPath.dropFirst(prefix.count))
+            let components = relativePath.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+            guard let fileName = components.last else { continue }
+            
+            var current = rootNode
+            if components.count > 1 {
+                var currentRelativePath = ""
+                for directoryName in components.dropLast() {
+                    currentRelativePath = currentRelativePath.isEmpty
+                        ? directoryName
+                        : currentRelativePath + "/" + directoryName
+                    if let existing = current.directories[directoryName] {
+                        current = existing
+                    } else {
+                        let directoryURL = rootDirectoryURL.appendingPathComponent(currentRelativePath, isDirectory: true)
+                        let created = MutableDirectoryNode(
+                            name: directoryName,
+                            url: directoryURL,
+                            relativePath: currentRelativePath
+                        )
+                        current.directories[directoryName] = created
+                        current = created
+                    }
+                }
+            }
+            
+            if current.relativePath.isEmpty {
+                current.files.append(fileURL)
+            } else {
+                // Preserve file sort correctness later via localized sort in freeze.
+                current.files.append(fileURL.deletingLastPathComponent().appendingPathComponent(fileName))
+            }
+        }
+        
+        func freeze(_ directory: MutableDirectoryNode, isRoot: Bool) throws -> SidebarFileTreeNode {
+            try Task.checkCancellation()
+            
+            let directoryChildren = try directory.directories.values
+                .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+                .map { try freeze($0, isRoot: false) }
+            
+            let fileChildren = directory.files
+                .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
+                .map { fileURL in
+                    let relativePath = directory.relativePath.isEmpty
+                        ? fileURL.lastPathComponent
+                        : directory.relativePath + "/" + fileURL.lastPathComponent
+                    return SidebarFileTreeNode(
+                        id: fileURL.path,
+                        name: fileURL.lastPathComponent,
+                        url: fileURL,
+                        relativePath: relativePath,
+                        searchKey: relativePath.localizedLowercase,
+                        kind: .file,
+                        children: [],
+                        descendantFileCount: 1
+                    )
+                }
+            
+            let children = directoryChildren + fileChildren
+            let relativePath = isRoot ? "" : directory.relativePath
+            let searchKey = (isRoot ? directory.name : (relativePath.isEmpty ? directory.name : relativePath)).localizedLowercase
+            return SidebarFileTreeNode(
+                id: directory.url.path,
+                name: directory.name,
+                url: directory.url,
+                relativePath: relativePath,
+                searchKey: searchKey,
+                kind: .directory,
+                children: children,
+                descendantFileCount: children.reduce(0) { $0 + $1.descendantFileCount }
+            )
+        }
+        
+        return try freeze(rootNode, isRoot: true)
+    }
+    
+    nonisolated private static func filterSidebarFileTree(
+        root: SidebarFileTreeNode,
+        query: String
+    ) -> SidebarFileTreeNode? {
+        let normalizedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines).localizedLowercase
+        guard !normalizedQuery.isEmpty else { return root }
+        
+        func filter(_ node: SidebarFileTreeNode, isRoot: Bool) -> SidebarFileTreeNode? {
+            if !node.isDirectory {
+                return node.searchKey.contains(normalizedQuery) ? node : nil
+            }
+            
+            let filteredChildren = node.children.compactMap { child in
+                filter(child, isRoot: false)
+            }
+            
+            if isRoot {
+                return filteredChildren.isEmpty ? nil : node.replacingChildren(filteredChildren)
+            }
+            
+            if !filteredChildren.isEmpty {
+                return node.replacingChildren(filteredChildren)
+            }
+            
+            return node.searchKey.contains(normalizedQuery) ? node.replacingChildren([]) : nil
+        }
+        
+        return filter(root, isRoot: true)
     }
     
     private struct DirectoryScanProgress: Sendable {
