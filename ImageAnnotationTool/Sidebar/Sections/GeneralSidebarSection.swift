@@ -4,6 +4,8 @@ struct GeneralSidebarSection: View {
     
     @ObservedObject private var store = AnnotationAppStore.shared
     @State private var expandedDirectoryIDs: Set<String> = []
+    @State private var cachedRootNode: FileTreeNode?
+    @State private var cachedFilteredFileCount: Int = 0
     
     var body: some View {
         Section(header: Text("Files")) {
@@ -24,10 +26,10 @@ struct GeneralSidebarSection: View {
             } else if store.imageFiles.isEmpty {
                 Text("No jpg/png images found")
                     .foregroundColor(.secondary)
-            } else if store.filteredImageFiles.isEmpty {
+            } else if cachedFilteredFileCount == 0 {
                 Text("No matching files")
                     .foregroundColor(.secondary)
-            } else if let rootNode = fileTreeRootNode {
+            } else if let rootNode = cachedRootNode {
                 FileTreeNodeRow(
                     node: rootNode,
                     expandedDirectoryIDs: $expandedDirectoryIDs,
@@ -38,12 +40,26 @@ struct GeneralSidebarSection: View {
                     .foregroundColor(.secondary)
             }
         }
+        .onAppear {
+            rebuildTreeCache()
+        }
         .onChange(of: store.rootDirectoryURL?.path) { _ in
             expandedDirectoryIDs.removeAll()
+            rebuildTreeCache()
+        }
+        .onChange(of: store.imageFiles) { _ in
+            rebuildTreeCache()
+        }
+        .onChange(of: store.sidebarSearchText) { _ in
+            rebuildTreeCache()
         }
         .onChange(of: store.isScanningDirectory) { isScanning in
             if isScanning {
                 expandedDirectoryIDs.removeAll()
+                cachedRootNode = nil
+                cachedFilteredFileCount = 0
+            } else {
+                rebuildTreeCache()
             }
         }
     }
@@ -52,9 +68,21 @@ struct GeneralSidebarSection: View {
         !store.sidebarSearchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
-    private var fileTreeRootNode: FileTreeNode? {
-        guard let rootDirectoryURL = store.rootDirectoryURL else { return nil }
-        return FileTreeNode.makeRoot(rootDirectoryURL: rootDirectoryURL, fileURLs: store.filteredImageFiles)
+    private func rebuildTreeCache() {
+        guard let rootDirectoryURL = store.rootDirectoryURL, !store.isScanningDirectory else {
+            cachedRootNode = nil
+            cachedFilteredFileCount = 0
+            return
+        }
+        
+        let filtered = store.filteredImageFiles
+        cachedFilteredFileCount = filtered.count
+        guard !filtered.isEmpty else {
+            cachedRootNode = nil
+            return
+        }
+        
+        cachedRootNode = FileTreeNode.makeRoot(rootDirectoryURL: rootDirectoryURL, fileURLs: filtered)
     }
 }
 

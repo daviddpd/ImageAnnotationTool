@@ -60,6 +60,7 @@ final class AnnotationAppStore: ObservableObject {
     @Published private(set) var selectedImageURL: URL?
     @Published private(set) var documentsByImageURL: [URL: ImageAnnotationDocument] = [:]
     @Published private(set) var dirtyImageURLs: Set<URL> = []
+    @Published private(set) var unsavedImageFiles: [URL] = []
     @Published private(set) var loadWarningsByImageURL: [URL: String] = [:]
     @Published private(set) var isScanningDirectory = false
     @Published private(set) var scanProgressMessage: String?
@@ -71,6 +72,7 @@ final class AnnotationAppStore: ObservableObject {
     private var scanTask: Task<Void, Never>?
     private var activeScanID = UUID()
     private var lastSavedObjectsByImageURL: [URL: [AnnotationBoundingBox]] = [:]
+    private var imageIndexByURL: [URL: Int] = [:]
     
     private init() {}
     
@@ -84,7 +86,7 @@ final class AnnotationAppStore: ObservableObject {
     
     var currentImageIndex: Int? {
         guard let selectedImageURL else { return nil }
-        return imageFiles.firstIndex(of: selectedImageURL)
+        return imageIndexByURL[selectedImageURL]
     }
     
     var canGoPrevious: Bool {
@@ -114,10 +116,6 @@ final class AnnotationAppStore: ObservableObject {
             let relative = relativePath(for: url).localizedLowercase
             return relative.contains(query.localizedLowercase)
         }
-    }
-    
-    var unsavedImageFiles: [URL] {
-        imageFiles.filter { dirtyImageURLs.contains($0) }
     }
     
     var hasUnsavedChanges: Bool {
@@ -187,9 +185,11 @@ final class AnnotationAppStore: ObservableObject {
         
         rootDirectoryURL = url
         imageFiles = []
+        imageIndexByURL.removeAll()
         selectedImageURL = nil
         documentsByImageURL.removeAll()
         dirtyImageURLs.removeAll()
+        unsavedImageFiles = []
         loadWarningsByImageURL.removeAll()
         lastSavedObjectsByImageURL.removeAll()
         sidebarSearchText = ""
@@ -240,7 +240,7 @@ final class AnnotationAppStore: ObservableObject {
             return
         }
         
-        guard imageFiles.contains(url) else {
+        guard imageIndexByURL[url] != nil else {
             return
         }
         
@@ -367,7 +367,7 @@ final class AnnotationAppStore: ObservableObject {
     
     func metadataSummary(for url: URL) -> String {
         let indexText: String
-        if let index = imageFiles.firstIndex(of: url) {
+        if let index = imageIndexByURL[url] {
             indexText = "\(index + 1)/\(imageFiles.count)"
         } else {
             indexText = "-/-"
@@ -418,12 +418,20 @@ final class AnnotationAppStore: ObservableObject {
     
     private func markDirty(_ isDirty: Bool, for imageURL: URL) {
         guard var document = documentsByImageURL[imageURL] else { return }
-        document.isDirty = isDirty
-        documentsByImageURL[imageURL] = document
+        if document.isDirty != isDirty {
+            document.isDirty = isDirty
+            documentsByImageURL[imageURL] = document
+        }
+        
+        let dirtySetChanged: Bool
         if isDirty {
-            dirtyImageURLs.insert(imageURL)
+            dirtySetChanged = dirtyImageURLs.insert(imageURL).inserted
         } else {
-            dirtyImageURLs.remove(imageURL)
+            dirtySetChanged = dirtyImageURLs.remove(imageURL) != nil
+        }
+        
+        if dirtySetChanged {
+            rebuildUnsavedImageFilesCache()
         }
     }
     
@@ -499,10 +507,16 @@ final class AnnotationAppStore: ObservableObject {
         scanProgressMessage = nil
         statusMessage = "Loaded \(files.count) image\(files.count == 1 ? "" : "s")"
         imageFiles = files
+        imageIndexByURL = Dictionary(uniqueKeysWithValues: files.enumerated().map { ($0.element, $0.offset) })
+        rebuildUnsavedImageFilesCache()
         
         if let first = files.first {
             selectImage(url: first)
         }
+    }
+    
+    private func rebuildUnsavedImageFilesCache() {
+        unsavedImageFiles = imageFiles.filter { dirtyImageURLs.contains($0) }
     }
     
     private struct DirectoryScanProgress: Sendable {
