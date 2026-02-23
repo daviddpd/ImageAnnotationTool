@@ -20,6 +20,11 @@ struct ExportCommands: Commands {
             }
             .keyboardShortcut("s", modifiers: [.command])
             
+            Button("Save All Unsaved Annotations") {
+                AnnotationAppStore.shared.saveAllUnsavedAnnotations()
+            }
+            .keyboardShortcut("s", modifiers: [.command, .shift])
+            
             Button("Save and Next") {
                 AnnotationAppStore.shared.saveCurrentAndAdvance()
             }

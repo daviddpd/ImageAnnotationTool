@@ -114,6 +114,10 @@ final class AnnotationAppStore: ObservableObject {
         imageFiles.filter { dirtyImageURLs.contains($0) }
     }
     
+    var hasUnsavedChanges: Bool {
+        !dirtyImageURLs.isEmpty
+    }
+    
     func openDirectoryPanel() {
         let panel = NSOpenPanel()
         panel.title = "Open Image Directory"
@@ -127,7 +131,34 @@ final class AnnotationAppStore: ObservableObject {
             return
         }
         
-        loadDirectory(url)
+        requestOpenDirectory(url)
+    }
+    
+    func requestOpenDirectory(_ url: URL) {
+        guard !dirtyImageURLs.isEmpty else {
+            loadDirectory(url)
+            return
+        }
+        
+        let unsavedCount = dirtyImageURLs.count
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "You have \(unsavedCount) unsaved annotation\(unsavedCount == 1 ? "" : "s")."
+        alert.informativeText = "Opening a different directory will discard in-memory unsaved changes for the current session."
+        alert.addButton(withTitle: "Save All and Open")
+        alert.addButton(withTitle: "Discard and Open")
+        alert.addButton(withTitle: "Cancel")
+        
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            if saveAllUnsavedAnnotations() {
+                loadDirectory(url)
+            }
+        case .alertSecondButtonReturn:
+            loadDirectory(url)
+        default:
+            break
+        }
     }
     
     func loadDirectory(_ url: URL) {
@@ -174,28 +205,70 @@ final class AnnotationAppStore: ObservableObject {
         selectImage(url: imageFiles[currentImageIndex + 1])
     }
     
-    func saveCurrentAnnotations() {
-        guard let selectedImageURL else { return }
-        ensureDocumentLoaded(for: selectedImageURL)
-        guard let document = documentsByImageURL[selectedImageURL] else { return }
-        guard let rootDirectoryURL else { return }
-        
-        do {
-            let labels = Set(document.objects.map(\.label).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
-            let classes = try ClassesFileStore.loadAndMergeClasses(rootDirectory: rootDirectoryURL, adding: labels)
-            try PascalVOCStore.write(document: document)
-            try YOLOStore.write(document: document, classes: classes)
-            markDirty(false, for: selectedImageURL)
-            statusMessage = "Saved \(document.filename)"
-            lastErrorMessage = nil
-        } catch {
-            lastErrorMessage = "Save failed for \(document.filename): \(error.localizedDescription)"
-        }
+    @discardableResult
+    func saveCurrentAnnotations() -> Bool {
+        guard let selectedImageURL else { return false }
+        return saveAnnotations(for: selectedImageURL)
     }
     
     func saveCurrentAndAdvance() {
-        saveCurrentAnnotations()
-        goToNextImage()
+        if saveCurrentAnnotations() {
+            goToNextImage()
+        }
+    }
+    
+    @discardableResult
+    func saveAllUnsavedAnnotations() -> Bool {
+        guard let _ = rootDirectoryURL else { return false }
+        let urlsToSave = unsavedImageFiles
+        guard !urlsToSave.isEmpty else {
+            statusMessage = "No unsaved annotations"
+            lastErrorMessage = nil
+            return true
+        }
+        
+        var failed: [String] = []
+        for url in urlsToSave {
+            if !saveAnnotations(for: url) {
+                failed.append(url.lastPathComponent)
+            }
+        }
+        
+        if failed.isEmpty {
+            statusMessage = "Saved \(urlsToSave.count) unsaved annotation\(urlsToSave.count == 1 ? "" : "s")"
+            lastErrorMessage = nil
+            return true
+        } else {
+            let summary = failed.prefix(3).joined(separator: ", ")
+            let suffix = failed.count > 3 ? " (+\(failed.count - 3) more)" : ""
+            lastErrorMessage = "Failed to save \(failed.count) file\(failed.count == 1 ? "" : "s"): \(summary)\(suffix)"
+            statusMessage = "Save All completed with errors"
+            return false
+        }
+    }
+    
+    func terminationReplyForUnsavedChanges() -> NSApplication.TerminateReply {
+        guard !dirtyImageURLs.isEmpty else {
+            return .terminateNow
+        }
+        
+        let unsavedCount = dirtyImageURLs.count
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Quit with \(unsavedCount) unsaved annotation\(unsavedCount == 1 ? "" : "s")?"
+        alert.informativeText = "Unsaved in-memory annotation changes will be lost if you quit now."
+        alert.addButton(withTitle: "Save All and Quit")
+        alert.addButton(withTitle: "Discard and Quit")
+        alert.addButton(withTitle: "Cancel")
+        
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            return saveAllUnsavedAnnotations() ? .terminateNow : .terminateCancel
+        case .alertSecondButtonReturn:
+            return .terminateNow
+        default:
+            return .terminateCancel
+        }
     }
     
     func updateObjectsForCurrentImage(_ objects: [AnnotationBoundingBox]) {
@@ -249,6 +322,33 @@ final class AnnotationAppStore: ObservableObject {
             dirtyImageURLs.insert(imageURL)
         } else {
             dirtyImageURLs.remove(imageURL)
+        }
+    }
+    
+    @discardableResult
+    private func saveAnnotations(for imageURL: URL) -> Bool {
+        ensureDocumentLoaded(for: imageURL)
+        guard let document = documentsByImageURL[imageURL] else {
+            lastErrorMessage = "Save failed: missing in-memory document for \(imageURL.lastPathComponent)"
+            return false
+        }
+        guard let rootDirectoryURL else {
+            lastErrorMessage = "Save failed: no root directory selected"
+            return false
+        }
+        
+        do {
+            let labels = Set(document.objects.map(\.label).filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty })
+            let classes = try ClassesFileStore.loadAndMergeClasses(rootDirectory: rootDirectoryURL, adding: labels)
+            try PascalVOCStore.write(document: document)
+            try YOLOStore.write(document: document, classes: classes)
+            markDirty(false, for: imageURL)
+            statusMessage = "Saved \(document.filename)"
+            lastErrorMessage = nil
+            return true
+        } catch {
+            lastErrorMessage = "Save failed for \(document.filename): \(error.localizedDescription)"
+            return false
         }
     }
     
@@ -417,7 +517,7 @@ enum PascalVOCStore {
         xmlDocument.characterEncoding = "UTF-8"
         xmlDocument.version = "1.0"
         let data = xmlDocument.xmlData(options: [.nodePrettyPrint])
-        try data.write(to: document.xmlURL, options: .atomic)
+        try AtomicFileWriter.write(data: data, to: document.xmlURL)
     }
 }
 
@@ -449,7 +549,7 @@ enum ClassesFileStore {
     
     private static func writeClasses(_ classes: [String], to url: URL) throws {
         let body = classes.joined(separator: "\n") + (classes.isEmpty ? "" : "\n")
-        try body.write(to: url, atomically: true, encoding: .utf8)
+        try AtomicFileWriter.write(string: body, to: url)
     }
 }
 
@@ -460,7 +560,7 @@ enum YOLOStore {
         
         // Stage 001 behavior choice: write an empty .txt file when there are zero objects.
         let body = lines.joined(separator: "\n") + (lines.isEmpty ? "" : "\n")
-        try body.write(to: document.yoloURL, atomically: true, encoding: .utf8)
+        try AtomicFileWriter.write(string: body, to: document.yoloURL)
     }
     
     private static func makeLines(
@@ -504,6 +604,35 @@ enum YOLOStore {
     
     private static func clamp(_ value: Double, min: Double, max: Double) -> Double {
         Swift.max(min, Swift.min(max, value))
+    }
+}
+
+enum AtomicFileWriter {
+    static func write(string: String, to url: URL) throws {
+        try write(data: Data(string.utf8), to: url)
+    }
+    
+    static func write(data: Data, to url: URL) throws {
+        let fileManager = FileManager.default
+        let directoryURL = url.deletingLastPathComponent()
+        let tempURL = directoryURL.appendingPathComponent(".\(url.lastPathComponent).tmp-\(UUID().uuidString)")
+        
+        do {
+            try data.write(to: tempURL, options: [])
+            if fileManager.fileExists(atPath: url.path) {
+                _ = try fileManager.replaceItemAt(
+                    url,
+                    withItemAt: tempURL,
+                    backupItemName: nil,
+                    options: [.usingNewMetadataOnly]
+                )
+            } else {
+                try fileManager.moveItem(at: tempURL, to: url)
+            }
+        } catch {
+            try? fileManager.removeItem(at: tempURL)
+            throw error
+        }
     }
 }
 

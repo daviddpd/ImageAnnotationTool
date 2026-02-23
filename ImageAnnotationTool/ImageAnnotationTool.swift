@@ -13,6 +13,7 @@ struct ImageAnnotationTool: App {
 
 // MARK: - App Delegate
 
+@MainActor
 class AppDelegate: NSObject, NSApplicationDelegate {
     
     var menuBarButton: MenuBarButton?
@@ -23,5 +24,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         return true
+    }
+    
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        AnnotationAppStore.shared.terminationReplyForUnsavedChanges()
     }
 }

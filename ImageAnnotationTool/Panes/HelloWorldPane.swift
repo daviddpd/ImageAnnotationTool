@@ -86,37 +86,7 @@ struct HelloWorldPane: View {
                         .padding(8)
                 }
                 
-                selectedBoxEditor(document: document)
-                
-                if !document.objects.isEmpty {
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 6) {
-                            ForEach(document.objects) { object in
-                                Button {
-                                    setSelectedBox(object.id, focusLabelEditor: false)
-                                } label: {
-                                    Text(object.label)
-                                        .font(.caption)
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background((object.id == selectedBoxID ? Color.blue : Color.blue.opacity(0.25)).opacity(object.id == selectedBoxID ? 0.2 : 0.12))
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 6)
-                                                .stroke(object.id == selectedBoxID ? Color.blue : Color.clear, lineWidth: 1)
-                                        )
-                                        .cornerRadius(6)
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                    }
-                }
-                
-                if let errorMessage = store.lastErrorMessage {
-                    Text(errorMessage)
-                        .font(.caption)
-                        .foregroundColor(.red)
-                }
+                inspectorPanel(document: document)
             }
         } else if store.selectedImageURL != nil {
             VStack(spacing: 12) {
@@ -130,6 +100,64 @@ struct HelloWorldPane: View {
                 .foregroundColor(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+    
+    private func inspectorPanel(document: ImageAnnotationDocument) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            selectedBoxEditor(document: document)
+            
+            Divider()
+            
+            if !document.objects.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(document.objects) { object in
+                            Button {
+                                setSelectedBox(object.id, focusLabelEditor: false)
+                            } label: {
+                                Text(object.label)
+                                    .font(.caption)
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background((object.id == selectedBoxID ? Color.blue : Color.blue.opacity(0.25)).opacity(object.id == selectedBoxID ? 0.2 : 0.12))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 6)
+                                            .stroke(object.id == selectedBoxID ? Color.blue : Color.clear, lineWidth: 1)
+                                    )
+                                    .cornerRadius(6)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                }
+            } else {
+                Text("No boxes yet")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            
+            if let errorMessage = store.lastErrorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundColor(.red)
+                    .lineLimit(1)
+            } else {
+                Text(" ")
+                    .font(.caption)
+            }
+            
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 170, maxHeight: 170, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color.black.opacity(0.03))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.black.opacity(0.06), lineWidth: 1)
+        )
     }
     
     @ViewBuilder

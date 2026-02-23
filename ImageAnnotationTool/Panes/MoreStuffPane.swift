@@ -29,7 +29,8 @@ final class AnnotationCanvasNSView: NSView {
     private let canvasInset: CGFloat = 8
     private let handleSize: CGFloat = 8
     private let minBoxDimensionInPixels: CGFloat = 4
-    private let labelBannerHeight: CGFloat = 20
+    private let labelBannerHeight: CGFloat = 44
+    private let maxLabelFontSize: CGFloat = 34
     
     private var image: NSImage?
     private var imageSize: AnnotationImageSize = .init(width: 1, height: 1, depth: 3)
@@ -228,10 +229,13 @@ final class AnnotationCanvasNSView: NSView {
         NSBezierPath(rect: bannerRect).fill()
         
         let labelAttributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.systemFont(ofSize: 11, weight: .semibold),
+            .font: NSFont.systemFont(
+                ofSize: min(maxLabelFontSize, max(14, bannerRect.height - 10)),
+                weight: .bold
+            ),
             .foregroundColor: NSColor.white
         ]
-        let labelInsetRect = bannerRect.insetBy(dx: 6, dy: 2)
+        let labelInsetRect = bannerRect.insetBy(dx: 8, dy: 4)
         (box.label as NSString).draw(in: labelInsetRect, withAttributes: labelAttributes)
         
         if selected {
@@ -326,7 +330,7 @@ final class AnnotationCanvasNSView: NSView {
             x: rect.minX,
             y: rect.minY,
             width: rect.width,
-            height: min(labelBannerHeight, max(12, rect.height))
+            height: min(labelBannerHeight, max(18, rect.height))
         )
     }
     
