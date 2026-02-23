@@ -7,7 +7,7 @@ struct MainView: View {
     var body: some View {
         NavigationView {
             Sidebar()
-            HelloWorldPane()
+            AnnotationWorkspacePane()
         }
         .toolbar {
             ToolbarItemGroup {

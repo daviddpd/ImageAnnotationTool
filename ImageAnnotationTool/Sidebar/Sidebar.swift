@@ -12,8 +12,8 @@ struct Sidebar: View {
     
     var body: some View {
         List(selection: selectedImageBinding) {
-            GeneralSidebarSection()
-            MoreSidebarSection()
+            FilesSidebarSection()
+            UnsavedAnnotationsSidebarSection()
         }
         .listStyle(SidebarListStyle())
         .frame(minWidth: 180, idealWidth: 180, maxWidth: 300)

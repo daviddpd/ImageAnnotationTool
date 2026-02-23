@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct GeneralSidebarSection: View {
+struct FilesSidebarSection: View {
     
     @ObservedObject private var store = AnnotationAppStore.shared
     @State private var expandedDirectoryIDs: Set<String> = []
@@ -86,10 +86,10 @@ struct GeneralSidebarSection: View {
     }
 }
 
-struct GeneralSidebarSection_Previews: PreviewProvider {
+struct FilesSidebarSection_Previews: PreviewProvider {
     static var previews: some View {
         List {
-            GeneralSidebarSection()
+            FilesSidebarSection()
         }
     }
 }

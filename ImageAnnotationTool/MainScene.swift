@@ -11,7 +11,7 @@ struct MainScene: Scene {
             AboutCommand()
             SidebarCommands()
             ExportCommands()
-            MyCommands()
+            NavigationCommands()
         }
         Settings {
             SettingsWindow()

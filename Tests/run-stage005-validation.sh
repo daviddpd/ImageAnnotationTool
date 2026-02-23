@@ -15,7 +15,7 @@ trap cleanup EXIT
 xcrun swiftc \
   -sdk "$SDK_PATH" \
   -module-cache-path "$MODULE_CACHE_DIR" \
-  "$REPO_ROOT/ImageAnnotationTool/Export/MyExportDocument.swift" \
+  "$REPO_ROOT/ImageAnnotationTool/Export/AnnotationDataStore.swift" \
   "$REPO_ROOT/Tests/Stage005/main.swift" \
   -o "$BIN_PATH"
 

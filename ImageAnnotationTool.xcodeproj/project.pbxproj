@@ -16,18 +16,18 @@
 		4180AEC4283979530054FEA9 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEC3283979530054FEA9 /* MainView.swift */; };
 		4180AEC7283979FA0054FEA9 /* Sidebar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEC6283979FA0054FEA9 /* Sidebar.swift */; };
 		4180AEC928397A0B0054FEA9 /* EmptyPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEC828397A0B0054FEA9 /* EmptyPane.swift */; };
-		4180AECC28397C6F0054FEA9 /* HelloWorldPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AECB28397C6F0054FEA9 /* HelloWorldPane.swift */; };
-		4180AECE28397C880054FEA9 /* WhatsUpPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AECD28397C880054FEA9 /* WhatsUpPane.swift */; };
-		4180AED028397DB00054FEA9 /* MoreStuffPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AECF28397DB00054FEA9 /* MoreStuffPane.swift */; };
-		4180AED228397F100054FEA9 /* GeneralSidebarSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AED128397F100054FEA9 /* GeneralSidebarSection.swift */; };
+		4180AECC28397C6F0054FEA9 /* AnnotationWorkspacePane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AECB28397C6F0054FEA9 /* AnnotationWorkspacePane.swift */; };
+		4180AECE28397C880054FEA9 /* AnnotationCanvasView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AECD28397C880054FEA9 /* AnnotationCanvasView.swift */; };
+		4180AED028397DB00054FEA9 /* AnnotationCanvasNSView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AECF28397DB00054FEA9 /* AnnotationCanvasNSView.swift */; };
+		4180AED228397F100054FEA9 /* FilesSidebarSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AED128397F100054FEA9 /* FilesSidebarSection.swift */; };
 		4180AED428397F790054FEA9 /* SidebarPane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AED328397F790054FEA9 /* SidebarPane.swift */; };
-		4180AED7283980560054FEA9 /* MoreSidebarSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AED6283980560054FEA9 /* MoreSidebarSection.swift */; };
+		4180AED7283980560054FEA9 /* UnsavedAnnotationsSidebarSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AED6283980560054FEA9 /* UnsavedAnnotationsSidebarSection.swift */; };
 		4180AED9283983150054FEA9 /* SidebarFooter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AED8283983150054FEA9 /* SidebarFooter.swift */; };
 		4180AEDC283984740054FEA9 /* ExportCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEDB283984740054FEA9 /* ExportCommands.swift */; };
-		4180AEDE283985190054FEA9 /* MyExportDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEDD283985190054FEA9 /* MyExportDocument.swift */; };
+		4180AEDE283985190054FEA9 /* AnnotationDataStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEDD283985190054FEA9 /* AnnotationDataStore.swift */; };
 		4180AEE128398F460054FEA9 /* PaneBackground.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEE028398F460054FEA9 /* PaneBackground.swift */; };
 		4180AEE328398FE50054FEA9 /* Pane.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEE228398FE50054FEA9 /* Pane.swift */; };
-		4180AEE728399E160054FEA9 /* MyCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEE628399E160054FEA9 /* MyCommands.swift */; };
+		4180AEE728399E160054FEA9 /* NavigationCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEE628399E160054FEA9 /* NavigationCommands.swift */; };
 		4180AEEB2839A0280054FEA9 /* AboutCommand.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEEA2839A0280054FEA9 /* AboutCommand.swift */; };
 		4180AEEE2839A0660054FEA9 /* Bundle+Name.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEED2839A0660054FEA9 /* Bundle+Name.swift */; };
 		4180AEF12839A0830054FEA9 /* Bundle+Version.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4180AEF02839A0830054FEA9 /* Bundle+Version.swift */; };
@@ -56,18 +56,18 @@
 		4180AEC3283979530054FEA9 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
 		4180AEC6283979FA0054FEA9 /* Sidebar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sidebar.swift; sourceTree = "<group>"; };
 		4180AEC828397A0B0054FEA9 /* EmptyPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmptyPane.swift; sourceTree = "<group>"; };
-		4180AECB28397C6F0054FEA9 /* HelloWorldPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HelloWorldPane.swift; sourceTree = "<group>"; };
-		4180AECD28397C880054FEA9 /* WhatsUpPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WhatsUpPane.swift; sourceTree = "<group>"; };
-		4180AECF28397DB00054FEA9 /* MoreStuffPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreStuffPane.swift; sourceTree = "<group>"; };
-		4180AED128397F100054FEA9 /* GeneralSidebarSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSidebarSection.swift; sourceTree = "<group>"; };
+		4180AECB28397C6F0054FEA9 /* AnnotationWorkspacePane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationWorkspacePane.swift; sourceTree = "<group>"; };
+		4180AECD28397C880054FEA9 /* AnnotationCanvasView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCanvasView.swift; sourceTree = "<group>"; };
+		4180AECF28397DB00054FEA9 /* AnnotationCanvasNSView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationCanvasNSView.swift; sourceTree = "<group>"; };
+		4180AED128397F100054FEA9 /* FilesSidebarSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FilesSidebarSection.swift; sourceTree = "<group>"; };
 		4180AED328397F790054FEA9 /* SidebarPane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarPane.swift; sourceTree = "<group>"; };
-		4180AED6283980560054FEA9 /* MoreSidebarSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MoreSidebarSection.swift; sourceTree = "<group>"; };
+		4180AED6283980560054FEA9 /* UnsavedAnnotationsSidebarSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnsavedAnnotationsSidebarSection.swift; sourceTree = "<group>"; };
 		4180AED8283983150054FEA9 /* SidebarFooter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarFooter.swift; sourceTree = "<group>"; };
 		4180AEDB283984740054FEA9 /* ExportCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportCommands.swift; sourceTree = "<group>"; };
-		4180AEDD283985190054FEA9 /* MyExportDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyExportDocument.swift; sourceTree = "<group>"; };
+		4180AEDD283985190054FEA9 /* AnnotationDataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnnotationDataStore.swift; sourceTree = "<group>"; };
 		4180AEE028398F460054FEA9 /* PaneBackground.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaneBackground.swift; sourceTree = "<group>"; };
 		4180AEE228398FE50054FEA9 /* Pane.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pane.swift; sourceTree = "<group>"; };
-		4180AEE628399E160054FEA9 /* MyCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyCommands.swift; sourceTree = "<group>"; };
+		4180AEE628399E160054FEA9 /* NavigationCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationCommands.swift; sourceTree = "<group>"; };
 		4180AEEA2839A0280054FEA9 /* AboutCommand.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutCommand.swift; sourceTree = "<group>"; };
 		4180AEED2839A0660054FEA9 /* Bundle+Name.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+Name.swift"; sourceTree = "<group>"; };
 		4180AEF02839A0830054FEA9 /* Bundle+Version.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Bundle+Version.swift"; sourceTree = "<group>"; };
@@ -165,9 +165,9 @@
 			isa = PBXGroup;
 			children = (
 				4180AEDF28398F320054FEA9 /* Pane Helper */,
-				4180AECB28397C6F0054FEA9 /* HelloWorldPane.swift */,
-				4180AECD28397C880054FEA9 /* WhatsUpPane.swift */,
-				4180AECF28397DB00054FEA9 /* MoreStuffPane.swift */,
+				4180AECB28397C6F0054FEA9 /* AnnotationWorkspacePane.swift */,
+				4180AECD28397C880054FEA9 /* AnnotationCanvasView.swift */,
+				4180AECF28397DB00054FEA9 /* AnnotationCanvasNSView.swift */,
 				4180AEC828397A0B0054FEA9 /* EmptyPane.swift */,
 			);
 			path = Panes;
@@ -176,8 +176,8 @@
 		4180AED528397F8B0054FEA9 /* Sections */ = {
 			isa = PBXGroup;
 			children = (
-				4180AED128397F100054FEA9 /* GeneralSidebarSection.swift */,
-				4180AED6283980560054FEA9 /* MoreSidebarSection.swift */,
+				4180AED128397F100054FEA9 /* FilesSidebarSection.swift */,
+				4180AED6283980560054FEA9 /* UnsavedAnnotationsSidebarSection.swift */,
 			);
 			path = Sections;
 			sourceTree = "<group>";
@@ -194,7 +194,7 @@
 		4180AEE428399DC50054FEA9 /* My Menu Commands */ = {
 			isa = PBXGroup;
 			children = (
-				4180AEE628399E160054FEA9 /* MyCommands.swift */,
+				4180AEE628399E160054FEA9 /* NavigationCommands.swift */,
 			);
 			path = "My Menu Commands";
 			sourceTree = "<group>";
@@ -203,7 +203,7 @@
 			isa = PBXGroup;
 			children = (
 				4180AEDB283984740054FEA9 /* ExportCommands.swift */,
-				4180AEDD283985190054FEA9 /* MyExportDocument.swift */,
+				4180AEDD283985190054FEA9 /* AnnotationDataStore.swift */,
 			);
 			path = Export;
 			sourceTree = "<group>";
@@ -351,7 +351,7 @@
 				4180AEDC283984740054FEA9 /* ExportCommands.swift in Sources */,
 				4180AEFB2839A32F0054FEA9 /* AboutView.swift in Sources */,
 				4180AEEE2839A0660054FEA9 /* Bundle+Name.swift in Sources */,
-				4180AECE28397C880054FEA9 /* WhatsUpPane.swift in Sources */,
+				4180AECE28397C880054FEA9 /* AnnotationCanvasView.swift in Sources */,
 				4180AF052839A89A0054FEA9 /* DropTarget.swift in Sources */,
 				4180AF092839B0870054FEA9 /* AlwaysOnTop.swift in Sources */,
 				4180AEC4283979530054FEA9 /* MainView.swift in Sources */,
@@ -363,20 +363,20 @@
 				4180AEF52839A1370054FEA9 /* NSWindow+AlwaysOnTop.swift in Sources */,
 				4180AEF92839A21F0054FEA9 /* AboutWindow.swift in Sources */,
 				4180AEE128398F460054FEA9 /* PaneBackground.swift in Sources */,
-				4180AED7283980560054FEA9 /* MoreSidebarSection.swift in Sources */,
-				4180AEDE283985190054FEA9 /* MyExportDocument.swift in Sources */,
+				4180AED7283980560054FEA9 /* UnsavedAnnotationsSidebarSection.swift in Sources */,
+				4180AEDE283985190054FEA9 /* AnnotationDataStore.swift in Sources */,
 				4180AF0F283A50660054FEA9 /* MenuBarButton.swift in Sources */,
 				4180AEF32839A0950054FEA9 /* Bundle+Copyright.swift in Sources */,
-				4180AED028397DB00054FEA9 /* MoreStuffPane.swift in Sources */,
+				4180AED028397DB00054FEA9 /* AnnotationCanvasNSView.swift in Sources */,
 				4180AEC0283976740054FEA9 /* SettingsWindow.swift in Sources */,
 				4180AED9283983150054FEA9 /* SidebarFooter.swift in Sources */,
 				4180AEFE2839A3B30054FEA9 /* AttributionsWindow.swift in Sources */,
-				4180AEE728399E160054FEA9 /* MyCommands.swift in Sources */,
+				4180AEE728399E160054FEA9 /* NavigationCommands.swift in Sources */,
 				4180AEEB2839A0280054FEA9 /* AboutCommand.swift in Sources */,
-				4180AED228397F100054FEA9 /* GeneralSidebarSection.swift in Sources */,
+				4180AED228397F100054FEA9 /* FilesSidebarSection.swift in Sources */,
 				4180AEAE2839753E0054FEA9 /* ImageAnnotationTool.swift in Sources */,
 				4180AED428397F790054FEA9 /* SidebarPane.swift in Sources */,
-				4180AECC28397C6F0054FEA9 /* HelloWorldPane.swift in Sources */,
+				4180AECC28397C6F0054FEA9 /* AnnotationWorkspacePane.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

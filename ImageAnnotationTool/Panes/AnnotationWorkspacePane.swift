@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct HelloWorldPane: View {
+struct AnnotationWorkspacePane: View {
     @ObservedObject private var store = AnnotationAppStore.shared
     @Environment(\.undoManager) private var undoManager
     
@@ -337,9 +337,9 @@ struct HelloWorldPane: View {
     }
 }
 
-struct HelloWorldPane_Previews: PreviewProvider {
+struct AnnotationWorkspacePane_Previews: PreviewProvider {
     static var previews: some View {
-        HelloWorldPane()
+        AnnotationWorkspacePane()
             .frame(width: 700, height: 500)
     }
 }

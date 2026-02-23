@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct MoreSidebarSection: View {
+struct UnsavedAnnotationsSidebarSection: View {
     
     @ObservedObject private var store = AnnotationAppStore.shared
     
@@ -25,10 +25,10 @@ struct MoreSidebarSection: View {
     }
 }
 
-struct MoreSidebarSection_Previews: PreviewProvider {
+struct UnsavedAnnotationsSidebarSection_Previews: PreviewProvider {
     static var previews: some View {
         List {
-            MoreSidebarSection()
+            UnsavedAnnotationsSidebarSection()
         }
     }
 }

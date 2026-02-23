@@ -1,6 +1,6 @@
 import SwiftUI
 
-struct MyCommands: Commands {
+struct NavigationCommands: Commands {
     
     var body: some Commands {
         CommandMenu("Annotate") {
