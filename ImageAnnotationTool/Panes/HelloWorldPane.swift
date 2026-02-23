@@ -26,7 +26,6 @@ struct HelloWorldPane: View {
                 } label: {
                     Label("Open Directory…", systemImage: "folder")
                 }
-                AlwaysOnTopCheckbox()
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         } else if store.imageFiles.isEmpty {
@@ -39,22 +38,8 @@ struct HelloWorldPane: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else if let selectedImageURL = store.selectedImageURL {
+        } else if store.selectedImageURL != nil {
             VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(selectedImageURL.lastPathComponent)
-                            .font(.headline)
-                        Text(store.relativePath(for: selectedImageURL))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                    Spacer()
-                    Text(store.metadataSummary(for: selectedImageURL))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                
                 ZStack {
                     RoundedRectangle(cornerRadius: 8)
                         .fill(Color.black.opacity(0.04))
