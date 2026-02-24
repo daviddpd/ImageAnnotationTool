@@ -24,6 +24,34 @@ This project continues under the MIT License. See `LICENSE` for full terms.
 - Undo/redo for annotation edits
 - Scan progress and error/warning reporting for malformed XML/unreadable images
 
+# Keyboard Shortcuts / Keyboard Behavior
+
+## App-level shortcuts
+
+- `Cmd+O` : Open Directory
+- `Cmd+S` : Save current image annotations (`.xml`, `.txt`, `classes.txt`)
+- `Cmd+Shift+S` : Save all unsaved annotations
+- `Cmd+D` : Delete the selected bounding box/object (works even while editing the selected box label field)
+- `Space` : Save current image, then move to next image (only advances if save succeeds)
+- `Left Arrow` : Previous image (no save)
+- `Right Arrow` : Next image (no save)
+
+## Canvas / box editing keyboard behavior (focus-sensitive)
+
+- `Enter` (canvas focused, no box selected): select the first object and focus its label editor
+- `Enter` (canvas focused, box selected): open/focus the selected box label editor
+- `Delete` / `Backspace` (canvas focused, box selected): delete the selected box (same as the `Delete` button)
+- `Cmd+D` (annotation window focused, box selected): delete the selected box, even if the selected-box label text field is currently being edited
+
+## Selected box label editor (bottom inspector text field)
+
+- `Enter` : Apply the edited label, close the selected-box editor (clear selection), and return focus to the canvas
+- `Apply` button : Same behavior as `Enter`
+- `Cmd+D` : Delete the selected box/object (does not delete selected text; deletes the object instead)
+- `Tab` :
+  - If there are 2+ objects: apply the current label edit, then move to/select/focus the next object label editor
+  - If there is 1 object or no objects: does nothing
+
 
 # Credits
 

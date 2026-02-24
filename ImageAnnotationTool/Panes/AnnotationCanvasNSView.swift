@@ -38,10 +38,12 @@ final class AnnotationCanvasNSView: NSView {
     private var boxes: [AnnotationBoundingBox] = []
     private var selectedBoxID: UUID?
     private var defaultNewLabel: String = "object"
+    private var lastAppliedFocusRequestID: UInt64 = 0
     
     private var onBoxesChanged: (([AnnotationBoundingBox]) -> Void)?
     private var onSelectionChanged: ((UUID?) -> Void)?
     private var onLabelEditRequested: ((UUID) -> Void)?
+    private var onKeyboardCommand: ((AnnotationCanvasView.KeyboardCommand) -> Void)?
     
     private var interactionState: InteractionState = .none
     private var activeCreateBoxID: UUID?
@@ -56,9 +58,11 @@ final class AnnotationCanvasNSView: NSView {
         boxes: [AnnotationBoundingBox],
         selectedBoxID: UUID?,
         defaultNewLabel: String,
+        focusRequestID: UInt64,
         onBoxesChanged: @escaping ([AnnotationBoundingBox]) -> Void,
         onSelectionChanged: @escaping (UUID?) -> Void,
-        onLabelEditRequested: @escaping (UUID) -> Void
+        onLabelEditRequested: @escaping (UUID) -> Void,
+        onKeyboardCommand: @escaping (AnnotationCanvasView.KeyboardCommand) -> Void
     ) {
         self.image = image
         self.imageSize = imageSize
@@ -74,6 +78,14 @@ final class AnnotationCanvasNSView: NSView {
         self.onBoxesChanged = onBoxesChanged
         self.onSelectionChanged = onSelectionChanged
         self.onLabelEditRequested = onLabelEditRequested
+        self.onKeyboardCommand = onKeyboardCommand
+        if focusRequestID != lastAppliedFocusRequestID {
+            lastAppliedFocusRequestID = focusRequestID
+            DispatchQueue.main.async { [weak self] in
+                guard let self, let window = self.window else { return }
+                window.makeFirstResponder(self)
+            }
+        }
         window?.invalidateCursorRects(for: self)
     }
     
@@ -193,6 +205,31 @@ final class AnnotationCanvasNSView: NSView {
         }
         activeCreateBoxID = nil
         interactionState = .none
+    }
+    
+    override func keyDown(with event: NSEvent) {
+        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty else {
+            super.keyDown(with: event)
+            return
+        }
+        
+        switch Int(event.keyCode) {
+        case 36, 76: // Return / keypad Enter
+            guard !boxes.isEmpty else { NSSound.beep(); return }
+            if selectedBoxID == nil {
+                onKeyboardCommand?(.activateFirstObjectEditor)
+            } else {
+                onLabelEditRequested?(selectedBoxID!)
+            }
+        case 48: // Tab
+            guard boxes.count > 1, selectedBoxID != nil else { return }
+            onKeyboardCommand?(.focusNextObjectEditor)
+        case 51, 117: // Delete / forward delete
+            guard selectedBoxID != nil else { return }
+            onKeyboardCommand?(.deleteSelectedObject)
+        default:
+            super.keyDown(with: event)
+        }
     }
     
     private func drawPlaceholderText(_ text: String, in rect: CGRect) {
