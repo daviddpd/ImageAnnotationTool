@@ -514,9 +514,10 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Image Annotation Tool";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (c) 2026 David P. Discher";
+					GENERATE_INFOPLIST_FILE = YES;
+					INFOPLIST_KEY_CFBundleDisplayName = "Image Annotation Tool";
+					INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+					INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (c) 2026 David P. Discher";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -545,9 +546,10 @@
 				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Image Annotation Tool";
-				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (c) 2026 David P. Discher";
+					GENERATE_INFOPLIST_FILE = YES;
+					INFOPLIST_KEY_CFBundleDisplayName = "Image Annotation Tool";
+					INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.graphics-design";
+					INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright (c) 2026 David P. Discher";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

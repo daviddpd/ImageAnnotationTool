@@ -72,3 +72,9 @@ OK, take [001-Inital Requirements.md](VibeCodingPrompts/001-Inital Requirements.
 
 - Manual checklist: `QA/Manual-QA-Checklist.md`
 - Stage 005 local validation script: `./Tests/run-stage005-validation.sh`
+
+# Release Prep
+
+- Release guide / signing + DMG + App Store workflow notes: `ImageAnnotationTool.xcodeproj/README-Release.md`
+- App Store Connect metadata template: `docs/release/AppStoreConnect-Metadata-Template.md`
+- Release helper scripts: `scripts/release/`
