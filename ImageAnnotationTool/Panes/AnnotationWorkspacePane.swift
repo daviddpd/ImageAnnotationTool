@@ -86,6 +86,7 @@ struct AnnotationWorkspacePane: View {
                     
                     AnnotationCanvasView(
                         image: image,
+                        imageIdentifier: document.imageURL.path,
                         imageSize: document.imageSize,
                         boxes: document.objects,
                         selectedBoxID: selectedBoxID,

@@ -34,6 +34,7 @@ final class AnnotationCanvasNSView: NSView {
     private let maxLabelFontSize: CGFloat = 34
     
     private var image: NSImage?
+    private var imageIdentifier: String = ""
     private var imageSize: AnnotationImageSize = .init(width: 1, height: 1, depth: 3)
     private var boxes: [AnnotationBoundingBox] = []
     private var selectedBoxID: UUID?
@@ -54,6 +55,7 @@ final class AnnotationCanvasNSView: NSView {
     
     func configure(
         image: NSImage,
+        imageIdentifier: String,
         imageSize: AnnotationImageSize,
         boxes: [AnnotationBoundingBox],
         selectedBoxID: UUID?,
@@ -64,8 +66,17 @@ final class AnnotationCanvasNSView: NSView {
         onLabelEditRequested: @escaping (UUID) -> Void,
         onKeyboardCommand: @escaping (AnnotationCanvasView.KeyboardCommand) -> Void
     ) {
+        let imageObjectChanged = self.image !== image
+        let imageIdentifierChanged = self.imageIdentifier != imageIdentifier
+        let imageSizeChanged = self.imageSize != imageSize
         self.image = image
+        self.imageIdentifier = imageIdentifier
         self.imageSize = imageSize
+        if imageObjectChanged || imageIdentifierChanged || imageSizeChanged {
+            activeCreateBoxID = nil
+            interactionState = .none
+            needsDisplay = true
+        }
         if self.boxes != boxes {
             self.boxes = boxes
             needsDisplay = true

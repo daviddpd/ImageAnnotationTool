@@ -117,6 +117,7 @@ final class AnnotationAppStore: ObservableObject {
     private var lastSavedObjectsByImageURL: [URL: [AnnotationBoundingBox]] = [:]
     private var imageIndexByURL: [URL: Int] = [:]
     private var fullFileTreeRoot: SidebarFileTreeNode?
+    private var imageCacheByURL: [URL: NSImage] = [:]
     
     private init() {}
     
@@ -150,7 +151,7 @@ final class AnnotationAppStore: ObservableObject {
     
     var currentImageNSImage: NSImage? {
         guard let selectedImageURL else { return nil }
-        return NSImage(contentsOf: selectedImageURL)
+        return cachedImage(for: selectedImageURL)
     }
     
     var filteredImageFiles: [URL] {
@@ -242,6 +243,7 @@ final class AnnotationAppStore: ObservableObject {
         loadWarningsByImageURL.removeAll()
         fullFileTreeRoot = nil
         displayedFileTreeRoot = nil
+        imageCacheByURL.removeAll()
         fileTreeStructureVersion &+= 1
         fileTreeDecorationsVersion &+= 1
         isFilteringFiles = false
@@ -588,6 +590,17 @@ final class AnnotationAppStore: ObservableObject {
         if let first = files.first {
             selectImage(url: first)
         }
+    }
+
+    private func cachedImage(for imageURL: URL) -> NSImage? {
+        if let image = imageCacheByURL[imageURL] {
+            return image
+        }
+        guard let image = NSImage(contentsOf: imageURL) else {
+            return nil
+        }
+        imageCacheByURL[imageURL] = image
+        return image
     }
     
     private func rebuildUnsavedImageFilesCache() {

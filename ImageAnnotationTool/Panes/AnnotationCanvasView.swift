@@ -9,6 +9,7 @@ struct AnnotationCanvasView: NSViewRepresentable {
     }
     
     var image: NSImage
+    var imageIdentifier: String
     var imageSize: AnnotationImageSize
     var boxes: [AnnotationBoundingBox]
     var selectedBoxID: UUID?
@@ -23,6 +24,7 @@ struct AnnotationCanvasView: NSViewRepresentable {
         let view = AnnotationCanvasNSView()
         view.configure(
             image: image,
+            imageIdentifier: imageIdentifier,
             imageSize: imageSize,
             boxes: boxes,
             selectedBoxID: selectedBoxID,
@@ -39,6 +41,7 @@ struct AnnotationCanvasView: NSViewRepresentable {
     func updateNSView(_ nsView: AnnotationCanvasNSView, context: Context) {
         nsView.configure(
             image: image,
+            imageIdentifier: imageIdentifier,
             imageSize: imageSize,
             boxes: boxes,
             selectedBoxID: selectedBoxID,
