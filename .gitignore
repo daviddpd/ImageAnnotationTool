@@ -18,6 +18,8 @@ xcuserdata/
 *.ipa
 *.dSYM.zip
 *.dSYM
+*.app
+*.dmg
 
 *.xcworkspace
 !default.xcworkspace
